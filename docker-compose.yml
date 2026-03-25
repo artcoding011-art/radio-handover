@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  radio-handover:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: radio-handover-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-radio-handover-secret-key-2024}
+    volumes:
+      - ./local_db.json:/app/local_db.json
+    restart: always

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(tasklist /FI \"PID eq 29480\")",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //PID 29480)",
+      "Read(//c/Users/intaknim/Documents/**)",
+      "Bash(powershell -Command \"Compress-Archive -Path ''RADIO\\\\app'', ''RADIO\\\\components'', ''RADIO\\\\lib'', ''RADIO\\\\middleware.ts'', ''RADIO\\\\package.json'', ''RADIO\\\\next.config.js'', ''RADIO\\\\tailwind.config.ts'', ''RADIO\\\\postcss.config.js'', ''RADIO\\\\tsconfig.json'', ''RADIO\\\\.env.local.example'', ''RADIO\\\\.gitignore'', ''RADIO\\\\vercel.json'', ''RADIO\\\\README.md'' -DestinationPath ''RADIO_package.zip'' -Force\")",
+      "Bash(powershell -Command \"Test-Path ''C:\\\\Users\\\\intaknim\\\\Documents\\\\RADIO\\\\.claude\\\\launch.json''\")",
+      "Bash(powershell -Command \"Compress-Archive -Path ''C:\\\\Users\\\\intaknim\\\\Documents\\\\RADIO\\\\.claude'' -Update -DestinationPath ''C:\\\\Users\\\\intaknim\\\\Documents\\\\RADIO_package.zip''\")"
+    ]
+  }
+}
