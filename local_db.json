@@ -854,7 +854,14 @@
     "canceledWeeklyIds": [
       "a364065d-e5b2-49d6-945f-100ea3a33778"
     ],
-    "completedProgramIds": []
+    "completedProgramIds": [
+      "f909ba34-b92a-45b3-8a8e-ade635371f46",
+      "38868625-c507-48c9-b4ca-d1d3e0a08493",
+      "9d359097-674e-4bf9-adf1-8adf4598f28e",
+      "cde569fb-33eb-40e5-8d53-d16dbc6c2c00",
+      "b6edd740-65f4-4dec-aead-c8cb66f71371",
+      "f2306848-d895-4fc2-95df-0618b3b4d792"
+    ]
   },
   "schedule:daily:2026-03-16": {
     "1R": [],
@@ -903,5 +910,92 @@
     "MFM": [],
     "canceledWeeklyIds": [],
     "completedProgramIds": []
+  },
+  "schedule:daily:2026-03-27": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "0257208c-2e62-4114-8885-e22c2c1e94cb",
+      "9422bfad-fcdc-472a-a6e5-abab176e80ef",
+      "66b4b9c4-f99b-427e-bd92-8e2defd0732b",
+      "552d222f-c5f7-4277-85a0-460c07d82a94",
+      "fdcc6a08-4187-489a-99bf-b2d508414be3"
+    ]
+  },
+  "schedule:daily:2026-03-26": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "14fa4e6a-8804-4756-8637-73a7181d9de0",
+      "375b1804-bbe6-4280-9f4c-0759cb7804b0",
+      "abef5d25-8105-45f5-b125-73c9311eb304",
+      "c0ad9358-6e8d-4118-a324-c9b3f437c3e2",
+      "c8f6b949-80fe-44ab-b0a8-3b6cffa84d6f"
+    ]
+  },
+  "schedule:daily:2026-03-25": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "bf0303fa-6901-48f6-a16f-e225b472e05b",
+      "59732783-1794-41d1-aa64-e75a5be8bc4c",
+      "984dce63-4a8a-435c-9426-a6193f77a03a",
+      "7d0809e9-ea7a-47ef-a10f-4c9d503c48f5",
+      "a3ce360b-c8bc-4dee-b27c-f0104286e333"
+    ]
+  },
+  "schedule:daily:2026-03-24": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "bd8b0080-7f34-4b35-b3e3-360ea5b07fcf",
+      "a3440af0-226d-4fa7-aab7-8577f098543b",
+      "6d5bb928-0279-4b6b-8dc5-5ef5debb3a8c",
+      "396bce84-11e3-48d6-9231-ef34d0780862",
+      "770bbdf7-b395-4d21-8363-0a214c0ea1ba"
+    ]
+  },
+  "schedule:daily:2026-03-30": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "f909ba34-b92a-45b3-8a8e-ade635371f46",
+      "38868625-c507-48c9-b4ca-d1d3e0a08493",
+      "f2306848-d895-4fc2-95df-0618b3b4d792",
+      "9d359097-674e-4bf9-adf1-8adf4598f28e",
+      "cde569fb-33eb-40e5-8d53-d16dbc6c2c00"
+    ]
+  },
+  "schedule:daily:2026-03-31": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "bd8b0080-7f34-4b35-b3e3-360ea5b07fcf",
+      "a3440af0-226d-4fa7-aab7-8577f098543b",
+      "6d5bb928-0279-4b6b-8dc5-5ef5debb3a8c",
+      "396bce84-11e3-48d6-9231-ef34d0780862",
+      "770bbdf7-b395-4d21-8363-0a214c0ea1ba"
+    ]
+  },
+  "schedule:daily:2026-04-01": {
+    "1R": [],
+    "2R": [],
+    "MFM": [],
+    "canceledWeeklyIds": [],
+    "completedProgramIds": [
+      "bf0303fa-6901-48f6-a16f-e225b472e05b"
+    ]
   }
 }

@@ -5,23 +5,36 @@ let kv: any = null
 
 async function getKV() {
   if (kv) return kv
+
+  // 1. 일반 Redis 호환 환경 변수 확인 (TCP 방식 - ngrok 터널 등)
+  const redisURL = process.env.REDIS_URL || process.env.KV_URL
+  if (redisURL && redisURL.startsWith('redis')) {
+    try {
+      const Redis = (await import('ioredis')).default
+      kv = new Redis(redisURL)
+      // console.log("Using TCP Redis via ioredis")
+      return kv
+    } catch (e) {
+      console.error("Failed to connect via ioredis:", e)
+    }
+  }
   
-  // Vercel KV 환경 변수가 없으면 무조건 로컬 메모리 스토어 사용
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    // console.log("Using local memory store")
-    kv = memoryStore
-    return kv
+  // 2. Vercel KV REST 방식 확인 (HTTP 방식)
+  const isVercelKV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+  if (isVercelKV) {
+    try {
+      const { kv: vercelKV } = await import('@vercel/kv')
+      kv = vercelKV
+      // console.log("Using Vercel KV (REST)")
+      return kv
+    } catch (e) {
+      console.error("Failed to connect via @vercel/kv:", e)
+    }
   }
 
-  try {
-    const { kv: vercelKV } = await import('@vercel/kv')
-    kv = vercelKV
-    return kv
-  } catch {
-    // 로컬 개발용 메모리 스토어 폴백
-    kv = memoryStore
-    return kv
-  }
+  // 3. 둘 다 없으면 로컬 메모리 스토어 폴백
+  kv = memoryStore
+  return kv
 }
 
 import fs from 'fs'

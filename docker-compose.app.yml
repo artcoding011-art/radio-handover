@@ -11,18 +11,20 @@ services:
       - redis_data:/data
     restart: always
 
-  # OpenClaw Agent
-  openclaw:
-    image: node:22-alpine
-    container_name: openclaw-agent
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /Users/admin/.openclaw:/root/.openclaw
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: radio-handover-app
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - GOOGLE_API_KEY=AIzaSyDY4GcRoXmb9RaR__MFE2-apFdRJGQonTk
-    command: sh -c "npx -y openclaw@latest start --logs-stdout"
+      - KV_URL=redis://redis:6379
+      - JWT_SECRET=your-secret-key-here-change-this
+      - ADMIN_ID=admin
+      - ADMIN_PASSWORD=admin
     depends_on:
       - redis
     restart: always
