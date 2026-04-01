@@ -6,16 +6,29 @@ let kv: any = null
 async function getKV() {
   if (kv) return kv
 
-  // 1. 일반 Redis 호환 환경 변수 확인 (TCP 방식 - ngrok 터널 등)
+  // 1. 일반 Redis 호환 환경 변수 확인 (TCP 방식 - ngrok/cloudflared 터널 등)
   const redisURL = process.env.REDIS_URL || process.env.KV_URL
   if (redisURL && redisURL.startsWith('redis')) {
     try {
       const Redis = (await import('ioredis')).default
-      kv = new Redis(redisURL)
-      // console.log("Using TCP Redis via ioredis")
+      console.log(`Attempting to connect to Redis at: ${redisURL.split('@').pop()}`) // 비밀번호 마스킹하여 로그 출력
+      
+      kv = new Redis(redisURL, {
+        connectTimeout: 5000, // 5초 타임아웃
+        maxRetriesPerRequest: 1,
+        retryStrategy: (times) => {
+          if (times > 1) return null; // 한 번만 재시도
+          return 100;
+        }
+      })
+
+      kv.on('error', (err: any) => {
+        console.error('Redis connection error:', err)
+      })
+
       return kv
     } catch (e) {
-      console.error("Failed to connect via ioredis:", e)
+      console.error("Failed to initialize ioredis:", e)
     }
   }
   
@@ -25,14 +38,14 @@ async function getKV() {
     try {
       const { kv: vercelKV } = await import('@vercel/kv')
       kv = vercelKV
-      // console.log("Using Vercel KV (REST)")
       return kv
     } catch (e) {
       console.error("Failed to connect via @vercel/kv:", e)
     }
   }
 
-  // 3. 둘 다 없으면 로컬 메모리 스토어 폴백
+  // 3. 둘 다 없거나 실패하면 로컬 메모리 스토어 폴백
+  console.log("Using local memory store fallback")
   kv = memoryStore
   return kv
 }
