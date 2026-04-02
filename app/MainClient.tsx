@@ -462,8 +462,8 @@ export default function MainClient({ userId }: MainClientProps) {
       <main className="flex-1 flex justify-center overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
         <div className="w-full max-w-[1600px] flex gap-5 p-5 h-full">
 
-        {/* 좌측: 인수인계서 (40%) / 제작일정 시 오늘의 제작일정 뷰 */}
-        <div className="w-[40%] flex-shrink-0 overflow-hidden">
+        {/* 좌측 (50%) / 제작일정 시 40% 유지 */}
+        <div className={`${activeMenu === 'handover' ? 'w-[50%]' : 'w-[40%]'} flex-shrink-0 overflow-hidden`}>
           {activeMenu === 'handover' ? (
             <HandoverForm 
               ref={formRef}
@@ -598,7 +598,8 @@ export default function MainClient({ userId }: MainClientProps) {
         </div>
 
         {/* 우측: 캘린더 + 정보 (60%) */}
-        <div className="flex-1 max-w-[900px] flex flex-col gap-3 overflow-y-auto min-w-0">
+        {/* 우측 (50% or 60%) */}
+        <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-w-0">
 
           {/* 캘린더 */}
           {activeMenu === 'handover' ? (
