@@ -178,9 +178,9 @@ export async function getCompletedScheduleDates(): Promise<string[]> {
     dailyMap.set(row.id.replace('schedule:daily:', ''), row.data)
   })
 
-  // 최근 3개월 정도만 체크 (성능을 위해)
+  // 최근 2개월 전부터 2개월 후까지 체크 (달력 표시 범위 고려)
   const today = new Date()
-  for (let i = -30; i <= 60; i++) {
+  for (let i = -60; i <= 60; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() + i)
     const dateStr = d.toISOString().split('T')[0]
