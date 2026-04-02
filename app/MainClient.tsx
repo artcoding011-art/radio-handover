@@ -459,7 +459,8 @@ export default function MainClient({ userId }: MainClientProps) {
       </header>
 
       {/* 메인: 4:6 분할 (너비 고정으로 탭 전환 시 흔들림 방지) */}
-      <main className="flex-1 flex gap-5 p-4 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+      <main className="flex-1 flex justify-center overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        <div className="w-full max-w-[1600px] flex gap-5 p-5 h-full">
 
         {/* 좌측: 인수인계서 (40%) / 제작일정 시 오늘의 제작일정 뷰 */}
         <div className="w-[40%] flex-shrink-0 overflow-hidden">
@@ -714,6 +715,7 @@ export default function MainClient({ userId }: MainClientProps) {
               Copyright by 허준, Build Date : 2026.03
             </span>
           </div>
+        </div>
         </div>
       </main>
 
