@@ -55,14 +55,14 @@ export default function ScheduleCalendar({
               return (
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-[2px] pointer-events-none">
                   {isCompleted && (
-                    <div className="absolute inset-0 bg-emerald-50/60 flex items-center justify-center">
-                       <svg className="w-5 h-5 text-emerald-500/40" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="absolute inset-0 bg-emerald-100/70 flex items-center justify-center">
+                       <svg className="w-8 h-8 text-emerald-500/50" fill="currentColor" viewBox="0 0 20 20">
                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                        </svg>
                     </div>
                   )}
                   {hasRecording && (
-                    <div className="w-[80%] h-[3px] bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] z-10" />
+                    <div className="w-[85%] h-[4px] bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] z-10" />
                   )}
                 </div>
               )
@@ -84,8 +84,8 @@ export default function ScheduleCalendar({
             <span>녹음</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-emerald-50 rounded border border-emerald-200 flex items-center justify-center">
-              <svg className="w-2 h-2 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+            <div className="w-3.5 h-3.5 bg-emerald-100 rounded border border-emerald-300 flex items-center justify-center">
+              <svg className="w-2.5 h-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </div>
@@ -100,6 +100,8 @@ export default function ScheduleCalendar({
           .react-calendar__tile.completed-tile abbr {
             position: relative;
             z-index: 10;
+            opacity: 0.4;
+            font-weight: 500;
           }
         `}</style>
     </div>
