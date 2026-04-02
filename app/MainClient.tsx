@@ -462,8 +462,8 @@ export default function MainClient({ userId }: MainClientProps) {
       <main className="flex-1 flex justify-center overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
         <div className="w-full max-w-[1600px] flex gap-5 p-5 h-full">
 
-        {/* 좌측 (50%) / 제작일정 시 40% 유지 */}
-        <div className={`${activeMenu === 'handover' ? 'w-[50%] flex-shrink' : 'w-[40%] flex-shrink-0'} overflow-visible`}>
+        {/* 좌측 (65% for Handover, 40% for Schedule) */}
+        <div className={`${activeMenu === 'handover' ? 'w-[65%] flex-shrink' : 'w-[40%] flex-shrink-0'} overflow-visible`}>
           {activeMenu === 'handover' ? (
             <HandoverForm 
               ref={formRef}
