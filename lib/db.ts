@@ -1,59 +1,192 @@
 import { HandoverEntry } from './types'
+import { createClient } from '@supabase/supabase-js'
 
-// Vercel KV를 사용하거나 로컬 개발 시 메모리 스토어 사용
-let kv: any = null
+// Supabase 클라이언트 초기화
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-async function getKV() {
-  if (kv) return kv
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null
 
-  // 1. 일반 Redis 호환 환경 변수 확인 (TCP 방식 - ngrok/cloudflared 터널 등)
-  const redisURL = process.env.REDIS_URL || process.env.KV_URL
-  if (redisURL && redisURL.startsWith('redis')) {
-    try {
-      const Redis = (await import('ioredis')).default
-      console.log(`Attempting to connect to Redis at: ${redisURL.split('@').pop()}`) // 비밀번호 마스킹하여 로그 출력
-      
-      kv = new Redis(redisURL, {
-        connectTimeout: 5000, // 5초 타임아웃
-        maxRetriesPerRequest: 1,
-        retryStrategy: (times) => {
-          if (times > 1) return null; // 한 번만 재시도
-          return 100;
-        }
-      })
+// --- 데이터베이스 접근 로직 (Supabase) ---
 
-      kv.on('error', (err: any) => {
-        console.error('Redis connection error:', err)
-      })
-
-      return kv
-    } catch (e) {
-      console.error("Failed to initialize ioredis:", e)
-    }
-  }
+export async function saveEntry(entry: HandoverEntry): Promise<void> {
+  if (!supabase) return memoryStore.set(`entry:${entry.date}`, entry)
   
-  // 2. Vercel KV REST 방식 확인 (HTTP 방식)
-  const isVercelKV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-  if (isVercelKV) {
-    try {
-      const { kv: vercelKV } = await import('@vercel/kv')
-      kv = vercelKV
-      return kv
-    } catch (e) {
-      console.error("Failed to connect via @vercel/kv:", e)
-    }
+  const { error } = await supabase
+    .from('handover_entries')
+    .upsert({ 
+      date: entry.date, 
+      data: entry,
+      updated_at: new Date().toISOString()
+    })
+  
+  if (error) {
+    console.error('Error saving entry to Supabase:', error)
+    throw error
   }
-
-  // 3. 둘 다 없거나 실패하면 로컬 메모리 스토어 폴백
-  console.log("Using local memory store fallback")
-  kv = memoryStore
-  return kv
 }
 
+export async function getEntry(date: string): Promise<HandoverEntry | null> {
+  if (!supabase) return memoryStore.get(`entry:${date}`)
+
+  const { data, error } = await supabase
+    .from('handover_entries')
+    .select('data')
+    .eq('date', date)
+    .single()
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+    console.error('Error getting entry from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function getAllDates(): Promise<string[]> {
+  if (!supabase) return memoryStore.smembers('entry:dates')
+
+  const { data, error } = await supabase
+    .from('handover_entries')
+    .select('date')
+    .order('date', { ascending: true })
+
+  if (error) {
+    console.error('Error getting all dates from Supabase:', error)
+    return []
+  }
+
+  return data?.map(row => row.date) || []
+}
+
+export async function deleteEntry(date: string): Promise<void> {
+  if (!supabase) return memoryStore.del(`entry:${date}`)
+
+  const { error } = await supabase
+    .from('handover_entries')
+    .delete()
+    .eq('date', date)
+
+  if (error) {
+    console.error('Error deleting entry from Supabase:', error)
+    throw error
+  }
+}
+
+export async function saveWeeklySchedule(data: any): Promise<void> {
+  if (!supabase) return memoryStore.set('calendar_schedule', data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id: 'calendar_schedule', data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving weekly schedule to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getWeeklySchedule(): Promise<any> {
+  if (!supabase) return memoryStore.get('calendar_schedule')
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', 'calendar_schedule')
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting weekly schedule from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function saveDailySchedule(date: string, data: any): Promise<void> {
+  const id = `schedule:daily:${date}`
+  if (!supabase) return memoryStore.set(id, data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id, data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving daily schedule to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getDailySchedule(date: string): Promise<any> {
+  const id = `schedule:daily:${date}`
+  if (!supabase) return memoryStore.get(id)
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting daily schedule from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function getDailyRecordingDates(): Promise<string[]> {
+  if (!supabase) return memoryStore.keys('schedule:daily:*')
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('id, data')
+    .like('id', 'schedule:daily:%')
+
+  if (error) {
+    console.error('Error getting recording dates from Supabase:', error)
+    return []
+  }
+
+  const recordingDates: string[] = []
+  for (const row of (data || [])) {
+    const scheduleData = row.data
+    const hasRecording = (scheduleData['1R']?.length > 0) || (scheduleData['2R']?.length > 0) || (scheduleData['MFM']?.length > 0)
+    if (hasRecording) {
+      recordingDates.push(row.id.replace('schedule:daily:', ''))
+    }
+  }
+
+  return recordingDates.sort()
+}
+
+export async function getEntriesByMonth(month: string): Promise<HandoverEntry[]> {
+  if (!supabase) {
+    const allDates = await getAllDates()
+    const monthDates = allDates.filter(d => d.startsWith(month))
+    const entries = await Promise.all(monthDates.map(date => getEntry(date)))
+    return entries.filter((e): e is HandoverEntry => e !== null)
+  }
+
+  const { data, error } = await supabase
+    .from('handover_entries')
+    .select('data')
+    .like('date', `${month}%`)
+    .order('date', { ascending: true })
+
+  if (error) {
+    console.error('Error getting month entries from Supabase:', error)
+    return []
+  }
+
+  return data?.map(row => row.data as HandoverEntry) || []
+}
+
+// --- 로컬 메모리 스토어 (최종 폴백용 - 기존 로직 유지) ---
 import fs from 'fs'
 import path from 'path'
-
-// 로컬 파일 스토어 (Next.js 개발 중 메모리 증발 방지용)
 const LOCAL_DB_PATH = path.join(process.cwd(), 'local_db.json')
 
 function loadLocalData(): Record<string, any> {
@@ -68,14 +201,6 @@ function loadLocalData(): Record<string, any> {
   return {}
 }
 
-function saveLocalData(data: Record<string, any>) {
-  try {
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(data, null, 2), 'utf-8')
-  } catch (error) {
-    console.error('Error writing local DB:', error)
-  }
-}
-
 const memoryStore = {
   get: async (key: string) => {
     const db = loadLocalData()
@@ -84,103 +209,21 @@ const memoryStore = {
   set: async (key: string, value: any) => { 
     const db = loadLocalData()
     db[key] = value
-    saveLocalData(db)
+    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
   },
   del: async (key: string) => { 
     const db = loadLocalData()
     delete db[key]
-    saveLocalData(db)
+    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
   },
   smembers: async (key: string) => {
     const db = loadLocalData()
     return db[key] ?? []
   },
-  sadd: async (key: string, ...values: string[]) => {
-    const db = loadLocalData()
-    if (!db[key]) db[key] = []
-    for (const v of values) {
-      if (!db[key].includes(v)) db[key].push(v)
-    }
-    saveLocalData(db)
-  },
   keys: async (pattern: string) => {
     const db = loadLocalData()
+    if (pattern === 'entry:dates') return [] 
     const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
     return Object.keys(db).filter(k => regex.test(k))
   }
-}
-
-export async function saveEntry(entry: HandoverEntry): Promise<void> {
-  const store = await getKV()
-  await store.set(`entry:${entry.date}`, entry)
-  await store.sadd('entry:dates', entry.date)
-}
-
-export async function getEntry(date: string): Promise<HandoverEntry | null> {
-  const store = await getKV()
-  return store.get(`entry:${date}`)
-}
-
-export async function getAllDates(): Promise<string[]> {
-  const store = await getKV()
-  const dates = await store.smembers('entry:dates')
-  return Array.isArray(dates) ? dates.sort() : []
-}
-
-export async function deleteEntry(date: string): Promise<void> {
-  const store = await getKV()
-  await store.del(`entry:${date}`)
-}
-
-export async function getEntriesByMonth(month: string): Promise<HandoverEntry[]> {
-  const allDates = await getAllDates()
-  const monthDates = allDates.filter(d => d.startsWith(month))
-  
-  const entries = await Promise.all(
-    monthDates.map(date => getEntry(date))
-  )
-  return entries.filter((e): e is HandoverEntry => e !== null)
-}
-
-export async function getWeeklySchedule(): Promise<any> {
-  const store = await getKV()
-  return await store.get('calendar_schedule')
-}
-
-export async function saveWeeklySchedule(data: any): Promise<void> {
-  const store = await getKV()
-  await store.set('calendar_schedule', data)
-}
-
-export async function getDailySchedule(date: string): Promise<any> {
-  const store = await getKV()
-  return await store.get(`schedule:daily:${date}`)
-}
-
-export async function saveDailySchedule(date: string, data: any): Promise<void> {
-  const store = await getKV()
-  await store.set(`schedule:daily:${date}`, data)
-}
-
-export async function getDailyRecordingDates(): Promise<string[]> {
-  const store = await getKV()
-  let keys: string[] = []
-  
-  if (typeof store.keys === 'function') {
-    keys = await store.keys('schedule:daily:*')
-  }
-
-  const recordingDates: string[] = []
-  
-  for (const key of keys) {
-    const data = await store.get(key)
-    if (data) {
-      const hasRecording = (data['1R']?.length > 0) || (data['2R']?.length > 0) || (data['MFM']?.length > 0)
-      if (hasRecording) {
-        recordingDates.push(key.replace('schedule:daily:', ''))
-      }
-    }
-  }
-  
-  return recordingDates
 }

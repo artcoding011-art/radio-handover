@@ -5,6 +5,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: radio-handover-redis
+    command: redis-server --timeout 0 --tcp-keepalive 60
     ports:
       - "6379:6379"
     volumes:
