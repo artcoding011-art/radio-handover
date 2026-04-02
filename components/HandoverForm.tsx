@@ -378,8 +378,8 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
       </div>
 
       {/* 폼 */}
-      <div className="overflow-auto flex-1 p-5">
-        <table className="w-full min-w-[700px] border-collapse border border-gray-300 mx-auto">
+      <div className="overflow-auto flex-1 p-4">
+        <table className="w-full min-w-[650px] border-collapse border border-gray-300 mx-auto">
           <tbody>
 
             {/* ── R-Studio ── */}
