@@ -243,8 +243,19 @@ const LOCAL_DB_PATH = path.join(process.cwd(), 'local_db.json')
 function loadLocalData(): Record<string, any> {
   try {
     if (fs.existsSync(LOCAL_DB_PATH)) {
-      const data = fs.readFileSync(LOCAL_DB_PATH, 'utf-8')
-      return JSON.parse(data)
+      const data = fs.readFileSync(LOCAL_DB_PATH, 'utf-8').trim()
+      if (!data) return {}
+      try {
+        return JSON.parse(data)
+      } catch (parseError) {
+        console.error('JSON Parse Error in local_db.json:', parseError)
+        console.error('Raw data causing error:', data.slice(0, 100) + '...')
+        // If it's corrupted, try to move it to a backup and start fresh to avoid infinite crash loop
+        const backupPath = `${LOCAL_DB_PATH}.bak.${Date.now()}`
+        fs.renameSync(LOCAL_DB_PATH, backupPath)
+        console.warn(`Corrupted local_db.json moved to ${backupPath}`)
+        return {}
+      }
     }
   } catch (error) {
     console.error('Error reading local DB:', error)
