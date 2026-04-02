@@ -463,7 +463,7 @@ export default function MainClient({ userId }: MainClientProps) {
         <div className="w-full max-w-[1600px] flex gap-5 p-5 h-full">
 
         {/* 좌측 (50%) / 제작일정 시 40% 유지 */}
-        <div className={`${activeMenu === 'handover' ? 'w-[50%]' : 'w-[40%]'} flex-shrink-0 overflow-hidden`}>
+        <div className={`${activeMenu === 'handover' ? 'w-[50%] flex-shrink' : 'w-[40%] flex-shrink-0'} overflow-visible`}>
           {activeMenu === 'handover' ? (
             <HandoverForm 
               ref={formRef}

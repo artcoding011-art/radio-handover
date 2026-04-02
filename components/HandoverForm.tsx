@@ -258,7 +258,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col h-full relative">
+    <div className="bg-white rounded-xl shadow-md overflow-x-auto flex flex-col h-full relative">
       {/* 저장 완료 팝업 */}
       {showSavePopup && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
