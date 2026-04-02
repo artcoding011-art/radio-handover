@@ -226,10 +226,7 @@ export default function ScheduleManager({
 
   const currentDayPrograms = tab === 'weekly' 
     ? (weeklySchedule?.[activeMedium][activeDay as 0|1|2|3|4|5|6] || [])
-    : (dailySchedule ? [
-        ...(weeklySchedule?.[activeMedium][activeDay as 0|1|2|3|4|5|6] || []).filter(p => !dailySchedule.canceledWeeklyIds?.includes(p.id)),
-        ...(dailySchedule?.[activeMedium] || [])
-      ].sort((a, b) => a.startTime.localeCompare(b.startTime)) : [])
+    : (dailySchedule?.[activeMedium] || [])
 
   const targetLabel = tab === 'weekly' ? `${DAYS[activeDay]}요일 주간 반복 일정` : `${format(selectedDate, 'MM.dd (eee)', { locale: ko })} 녹음 추가 일정`
 
