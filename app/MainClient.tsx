@@ -598,8 +598,8 @@ export default function MainClient({ userId }: MainClientProps) {
         </div>
 
         {/* 우측: 캘린더 + 정보 (60%) */}
-        {/* 우측 (50% or 60%) */}
-        <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-w-0">
+        {/* 우측: 캘린더 + 정보 (800px max) */}
+        <div className={`${activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
 
           {/* 캘린더 */}
           {activeMenu === 'handover' ? (
