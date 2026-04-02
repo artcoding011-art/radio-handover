@@ -80,6 +80,7 @@ export default function MainClient({ userId }: MainClientProps) {
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
   const [recordingDates, setRecordingDates] = useState<string[]>([])
+  const [completedDates, setCompletedDates] = useState<string[]>([])
   
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
@@ -238,12 +239,26 @@ export default function MainClient({ userId }: MainClientProps) {
     } catch {}
   }, [])
 
+  const fetchCompletedDates = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/schedule/daily/completed?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCompletedDates(data.dates || [])
+      }
+    } catch {}
+  }, [])
+
   useEffect(() => { fetchDates() }, [fetchDates])
   useEffect(() => { 
     fetchWeeklySchedule() 
     fetchRecordingDates()
-  }, [fetchWeeklySchedule, fetchRecordingDates])
-  useEffect(() => { fetchDailySchedule(selectedDate) }, [selectedDate, fetchDailySchedule])
+    fetchCompletedDates()
+  }, [fetchWeeklySchedule, fetchRecordingDates, fetchCompletedDates])
+  useEffect(() => { 
+    fetchDailySchedule(selectedDate)
+    fetchCompletedDates()
+  }, [selectedDate, fetchDailySchedule, fetchCompletedDates])
 
   const requestDeleteTodayProgram = (medium: '1R'|'2R'|'MFM', progId: string, isDaily: boolean) => {
     setDeleteTarget({ medium, id: progId, isDaily })
@@ -617,6 +632,7 @@ export default function MainClient({ userId }: MainClientProps) {
               onDateChange={handleDateChangeRequest}
               onMonthChange={handleMonthChange}
               recordingDates={recordingDates}
+              completedDates={completedDates}
             />
           )}
 
@@ -703,6 +719,7 @@ export default function MainClient({ userId }: MainClientProps) {
                 fetchWeeklySchedule(); 
                 fetchDailySchedule(selectedDate);
                 fetchRecordingDates();
+                fetchCompletedDates();
               }} 
               onOptimisticSync={(w, d) => {
                 if (w) setWeeklySchedule(w)

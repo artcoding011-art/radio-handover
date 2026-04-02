@@ -162,6 +162,57 @@ export async function getDailyRecordingDates(): Promise<string[]> {
   return recordingDates.sort()
 }
 
+export async function getCompletedScheduleDates(): Promise<string[]> {
+  const weekly = await getWeeklySchedule()
+  if (!weekly) return []
+
+  const { data: dailyRows, error } = supabase
+    ? await supabase.from('schedules').select('id, data').like('id', 'schedule:daily:%')
+    : { data: await memoryStore.keys('schedule:daily:*').then(keys => Promise.all(keys.map(async k => ({ id: k, data: await memoryStore.get(k) })))), error: null }
+
+  if (error) return []
+
+  const completedDates: string[] = []
+  const dailyMap = new Map<string, any>()
+  dailyRows?.forEach((row: any) => {
+    dailyMap.set(row.id.replace('schedule:daily:', ''), row.data)
+  })
+
+  // 최근 3개월 정도만 체크 (성능을 위해)
+  const today = new Date()
+  for (let i = -30; i <= 60; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + i)
+    const dateStr = d.toISOString().split('T')[0]
+    const dayIndex = d.getDay() as 0|1|2|3|4|5|6
+
+    const daily = dailyMap.get(dateStr)
+    const completedIds = daily?.completedProgramIds || []
+    const canceledIds = daily?.canceledWeeklyIds || []
+
+    const mediums: ('1R'|'2R'|'MFM')[] = ['1R', '2R', 'MFM']
+    let totalItems = 0
+    let completedItems = 0
+
+    for (const m of mediums) {
+      const weeklyProgs = (weekly[m]?.[dayIndex] || []).filter((p: any) => !canceledIds.includes(p.id))
+      const dailyProgs = daily?.[m] || []
+      
+      const allProgsForDay = [...weeklyProgs, ...dailyProgs]
+      totalItems += allProgsForDay.length
+      allProgsForDay.forEach(p => {
+        if (completedIds.includes(p.id)) completedItems++
+      })
+    }
+
+    if (totalItems > 0 && totalItems === completedItems) {
+      completedDates.push(dateStr)
+    }
+  }
+
+  return completedDates
+}
+
 export async function getEntriesByMonth(month: string): Promise<HandoverEntry[]> {
   if (!supabase) {
     const allDates = await getAllDates()
