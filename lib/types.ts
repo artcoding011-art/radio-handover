@@ -108,3 +108,29 @@ export function createEmptyEntry(date: string): HandoverEntry {
     updatedAt: new Date().toISOString(),
   }
 }
+
+export interface MwDataRow {
+  isOperating: boolean;
+  pd: string;
+  mpx: string;
+  leftLvl: string;
+  rightLvl: string;
+  vs2: string;
+  vsPlus: string;
+  vsMinus: string;
+  t: string;
+}
+
+export interface MwInspectionData {
+  time: string;
+  temperature: string;
+  humidity: string;
+  inspector: string;
+  '1R_TX1': MwDataRow;
+  '1R_TX2': MwDataRow;
+  '2R_TX1': MwDataRow;
+  '2R_TX2': MwDataRow;
+  'MFM_TX1': MwDataRow;
+  'MFM_TX2': MwDataRow;
+}
+

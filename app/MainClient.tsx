@@ -6,6 +6,8 @@ import HandoverForm, { HandoverFormRef } from '@/components/HandoverForm'
 import CalendarView from '@/components/CalendarView'
 import ScheduleCalendar from '@/components/ScheduleCalendar'
 import ScheduleManager from '@/components/ScheduleManager'
+import MwWeeklyList from '@/components/MwWeeklyList'
+import MwInspectionForm from '@/components/MwInspectionForm'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
@@ -67,6 +69,7 @@ export default function MainClient({ userId }: MainClientProps) {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [entryDates, setEntryDates] = useState<string[]>([])
+  const [mwRefreshKey, setMwRefreshKey] = useState(0)
   const [selectedInfo, setSelectedInfo] = useState<SelectedInfo | null>(null)
   const [monthlyEntries, setMonthlyEntries] = useState<MonthlyEntry[]>([])
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'))
@@ -85,8 +88,8 @@ export default function MainClient({ userId }: MainClientProps) {
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
   
-  // 새로 추가된 상단 탭 상태 ('업무인계서' | '제작일정')
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule'>('schedule')
+  // 새로 추가된 상단 탭 상태 ('업무인계서' | '제작일정' | 'mw' | 'dev')
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'dev'>('schedule')
 
   // JSZip 로드
   useEffect(() => {
@@ -460,6 +463,18 @@ export default function MainClient({ userId }: MainClientProps) {
             >
               업무인계서
             </button>
+            <button 
+              onClick={() => setActiveMenu('mw')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              M/W 점검
+            </button>
+            <button 
+              onClick={() => setActiveMenu('dev')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'dev' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              개발내용
+            </button>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -477,9 +492,23 @@ export default function MainClient({ userId }: MainClientProps) {
       <main className="flex-1 flex justify-center overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
         <div className="w-full max-w-[1600px] flex gap-5 p-5 h-full">
 
-        {/* 좌측 (Handover: 800px max, Schedule: 800px max) */}
-        <div className={`${activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'w-full max-w-[800px] flex-shrink-0'} overflow-visible`}>
-          {activeMenu === 'handover' ? (
+        {/* 좌측 (Handover: 800px max, Schedule: 800px max, MW: 200px fixed) */}
+        <div className={`
+          ${activeMenu === 'mw' ? 'w-full max-w-[200px] flex-shrink-0' 
+            : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'dev') ? 'w-full max-w-[800px] flex-shrink-0' 
+            : 'flex-1'} overflow-visible
+        `}>
+          {activeMenu === 'mw' ? (
+            <MwWeeklyList 
+              selectedDate={selectedDate}
+              onDateChange={handleDateChangeRequest}
+              refreshKey={mwRefreshKey}
+            />
+          ) : activeMenu === 'dev' ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full items-center justify-center">
+              <p className="text-slate-300 font-bold italic">준비 중입니다.</p>
+            </div>
+          ) : activeMenu === 'handover' ? (
             <HandoverForm 
               ref={formRef}
               date={selectedDate} 
@@ -589,7 +618,8 @@ export default function MainClient({ userId }: MainClientProps) {
                                 </div>
                               )}
                             </div>
-                          )})}
+                          )
+                        })}
                         </div>
                       </div>
                     )
@@ -612,12 +642,20 @@ export default function MainClient({ userId }: MainClientProps) {
           )}
         </div>
 
-        {/* 우측: 캘린더 + 정보 (60%) */}
-        {/* 우측: 캘린더 + 정보 (800px max) */}
-        <div className={`${activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
+        {/* 우측: 캘린더 + 정보 */}
+        <div className={`${activeMenu === 'mw' ? 'flex-1' : (activeMenu === 'handover' || activeMenu === 'dev') ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
 
-          {/* 캘린더 */}
-          {activeMenu === 'handover' ? (
+          {/* 캘린더 대체 및 실제 캘린더 */}
+          {activeMenu === 'mw' ? (
+            <MwInspectionForm 
+              date={selectedDate} 
+              onSaveSuccess={() => setMwRefreshKey(prev => prev + 1)}
+            />
+          ) : activeMenu === 'dev' ? (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-[600px] flex items-center justify-center">
+               <p className="text-slate-300 font-bold italic">준비 중입니다.</p>
+            </div>
+          ) : activeMenu === 'handover' ? (
             <CalendarView
               selectedDate={selectedDate}
               entryDates={entryDates}
@@ -710,7 +748,7 @@ export default function MainClient({ userId }: MainClientProps) {
                 )}
               </div>
             </>
-          ) : (
+          ) : activeMenu === 'schedule' ? (
             <ScheduleManager 
               selectedDate={selectedDate} 
               initialWeeklySchedule={weeklySchedule} 
@@ -726,7 +764,7 @@ export default function MainClient({ userId }: MainClientProps) {
                 if (d) setDailySchedule(d)
               }}
             />
-          )}
+          ) : null}
           
           <div className="mt-1 flex justify-end text-right flex-shrink-0">
             <span className="text-[12px] text-gray-300 font-medium italic">

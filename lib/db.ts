@@ -137,6 +137,75 @@ export async function getDailySchedule(date: string): Promise<any> {
   return data?.data || null
 }
 
+export async function saveMwInspection(date: string, data: any): Promise<void> {
+  const id = `mw_inspection:${date}`
+  if (!supabase) return memoryStore.set(id, data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id, data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving MwInspection to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getMwInspection(date: string): Promise<any> {
+  const id = `mw_inspection:${date}`
+  if (!supabase) return memoryStore.get(id)
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting MwInspection from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function getMwCompletionDates(year: string, month: string): Promise<string[]> {
+  const prefix = 'mw_inspection:'
+  const pattern = `${year}-${month}`
+  
+  if (!supabase) {
+    const keys = await memoryStore.keys(`${prefix}${pattern}*`)
+    return keys.map(k => k.replace(prefix, ''))
+  }
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('id')
+    .like('id', `${prefix}${pattern}%`)
+
+  if (error) {
+    console.error('Error getting MwCompletionDates from Supabase:', error)
+    return []
+  }
+
+  return data?.map(row => row.id.replace(prefix, '')) || []
+}
+
+export async function deleteMwInspection(date: string): Promise<void> {
+  const id = `mw_inspection:${date}`
+  if (!supabase) return memoryStore.del(id)
+
+  const { error } = await supabase
+    .from('schedules')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting MwInspection from Supabase:', error)
+    throw error
+  }
+}
+
 export async function getDailyRecordingDates(): Promise<string[]> {
   if (!supabase) return memoryStore.keys('schedule:daily:*')
 
