@@ -355,7 +355,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
 
       <fieldset disabled={!isEditing} className="flex-1 flex flex-col min-h-0 border-0 p-0 m-0">
         {/* 근무자 / 결재자 */}
-        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-5 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-center gap-8 flex-shrink-0">
         <span className="text-gray-500 text-[15px] font-medium whitespace-nowrap min-w-fit">{dateDisplay}</span>
         <label className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="text-gray-600 text-[15px] font-medium">근무자:</span>
