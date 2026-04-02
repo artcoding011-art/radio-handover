@@ -207,9 +207,29 @@ export default function ScheduleManager({
     onUpdated()
   }
 
+  const handleToggleComplete = async (progId: string) => {
+    if (!dailySchedule) return
+    const updated: DailyScheduleData = JSON.parse(JSON.stringify(dailySchedule))
+    const completedIds = updated.completedProgramIds || []
+    
+    if (completedIds.includes(progId)) {
+      updated.completedProgramIds = completedIds.filter(id => id !== progId)
+    } else {
+      updated.completedProgramIds = [...completedIds, progId]
+    }
+    
+    setDailySchedule(updated)
+    onOptimisticSync(null, updated)
+    await handleSaveDailyToServer(updated)
+    onUpdated()
+  }
+
   const currentDayPrograms = tab === 'weekly' 
     ? (weeklySchedule?.[activeMedium][activeDay as 0|1|2|3|4|5|6] || [])
-    : (dailySchedule?.[activeMedium] || [])
+    : (dailySchedule ? [
+        ...(weeklySchedule?.[activeMedium][activeDay as 0|1|2|3|4|5|6] || []).filter(p => !dailySchedule.canceledWeeklyIds?.includes(p.id)),
+        ...(dailySchedule?.[activeMedium] || [])
+      ].sort((a, b) => a.startTime.localeCompare(b.startTime)) : [])
 
   const targetLabel = tab === 'weekly' ? `${DAYS[activeDay]}요일 주간 반복 일정` : `${format(selectedDate, 'MM.dd (eee)', { locale: ko })} 녹음 추가 일정`
 
@@ -290,26 +310,37 @@ export default function ScheduleManager({
               해당 구역에 등록된 일정이 없습니다.
             </div>
           ) : (
-            currentDayPrograms.map(prog => (
-              <div key={prog.id} className={`flex items-center justify-between bg-white border rounded-lg p-2.5 transition-colors shadow-sm ${tab === 'daily' ? 'border-emerald-200 hover:border-emerald-300' : `${getMediumColor(activeMedium).borderLight} ${getMediumColor(activeMedium).borderHover}`}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`${tab === 'weekly' ? `${getMediumColor(activeMedium).bgLight} ${getMediumColor(activeMedium).text}` : 'bg-emerald-50 text-emerald-700'} font-mono font-bold text-[13px] px-2 py-0.5 rounded`}>
-                    {prog.startTime} ~ {prog.endTime}
+            currentDayPrograms.map(prog => {
+              const isCompleted = dailySchedule?.completedProgramIds?.includes(prog.id)
+              return (
+                <div key={prog.id} className={`flex items-center justify-between bg-white border rounded-lg p-2.5 transition-all shadow-sm ${isCompleted ? 'bg-emerald-50/40 border-emerald-200' : (tab === 'daily' ? 'border-emerald-200 hover:border-emerald-300' : `${getMediumColor(activeMedium).borderLight} ${getMediumColor(activeMedium).borderHover}`)}`}>
+                  <div className="flex items-center gap-3">
+                    {tab === 'daily' && (
+                      <button 
+                        onClick={() => handleToggleComplete(prog.id)}
+                        className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 text-transparent hover:border-emerald-500'}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </button>
+                    )}
+                    <div className={`${tab === 'weekly' ? `${getMediumColor(activeMedium).bgLight} ${getMediumColor(activeMedium).text}` : 'bg-emerald-50 text-emerald-700'} font-mono font-bold text-[13px] px-2 py-0.5 rounded`}>
+                      {prog.startTime} ~ {prog.endTime}
+                    </div>
+                    <div className={`font-semibold text-[14px] ${isCompleted ? 'text-gray-400 line-through decoration-emerald-500/50' : 'text-gray-800'}`}>
+                      {prog.programName}
+                    </div>
                   </div>
-                  <div className="font-semibold text-gray-800 text-[14px]">
-                    {prog.programName}
-                  </div>
+                  <button 
+                    onClick={() => requestDelete(prog.id)}
+                    className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
-                <button 
-                  onClick={() => requestDelete(prog.id)}
-                  className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
 
