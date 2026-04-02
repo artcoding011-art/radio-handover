@@ -1,8 +1,13 @@
-[라디오 업무인수인계 시스템 Release Note]
+[라디오 업무인수인계 시스템 Release Note v1.0]
 
 작성일 : 2026.04.02
 
-본 문서에는 로컬 DB 기반 시스템에서 Supabase 클라우드 데이터베이스 연동으로 전환한 시점부터 현재까지의 모든 업데이트 내용을 정리하였습니다.
+---
+
+### [ 시스템 접속 정보 ]
+* Supabase URL : https://dfriucffvserqmzstedg.supabase.co
+* Anon Key : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmcml1Y2ZmdnNlcnFtenN0ZWRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzQ1MjIsImV4cCI6MjA5MDY1MDUyMn0.e5OvtmP_5XukpxkkpciXF6mkfQ8ZBmRud3EFR9GQYXk
+* DB Password : changwonradio!
 
 ---
 
