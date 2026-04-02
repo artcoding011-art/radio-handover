@@ -53,7 +53,7 @@ function SectionHeader({ title, color = 'bg-gray-500' }: { title: string; color?
 function ColHeaders() {
   return (
     <tr className="bg-gray-100">
-      <th className="border border-gray-300 py-2 px-3 text-[15px] font-semibold text-gray-600 text-left">항목</th>
+      <th className="border border-gray-300 py-2 px-3 text-[15px] font-semibold text-gray-600 text-left w-40">항목</th>
       {COLS.map((col) => (
         <th key={col} className="border border-gray-300 py-2 text-[15px] font-semibold text-gray-600 w-20 text-center">
           {col}
@@ -70,7 +70,7 @@ function DataRow({ label, values, onChange }: {
 }) {
   return (
     <tr className="hover:bg-gray-50">
-      <td className="border border-gray-300 py-2 px-3 text-[15px] text-gray-700">{label}</td>
+      <td className="border border-gray-300 py-2 px-3 text-[15px] text-gray-700 w-40">{label}</td>
       {COLS.map((col) => (
         <td key={col} className="border border-gray-300 p-0 w-20">
           <ColSelect value={values[col]} onChange={(v) => onChange(col, v)} />
@@ -402,7 +402,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border-b border-gray-200 py-1.5 px-3 text-[15px] text-gray-500 font-semibold text-left">항목</th>
+                      <th className="border-b border-gray-200 py-1.5 px-3 text-[15px] text-gray-500 font-semibold text-left w-40">항목</th>
                       {COLS.map((c) => (
                         <th key={c} className="border-b border-l border-gray-200 py-1.5 text-[15px] text-gray-500 font-semibold text-center w-20">{c}</th>
                       ))}
@@ -416,7 +416,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
                       { key: 'ST내부모니터' as const, label: 'ST내부 모니터' },
                     ]).map(({ key, label }) => (
                       <tr key={key} className="hover:bg-gray-50">
-                        <td className="border-b border-gray-200 py-1.5 px-3 text-[15px] text-gray-600">{label}</td>
+                        <td className="border-b border-gray-200 py-1.5 px-3 text-[15px] text-gray-600 w-40">{label}</td>
                         {COLS.map((col) => (
                           <td key={col} className="border-b border-l border-gray-200 p-0 w-20">
                             <ColSelect value={entry.rStudio.체크항목[key][col]}
@@ -441,7 +441,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
             <SectionHeader title="R-MCR" color="bg-gray-500" />
             <ColHeaders />
             <tr className="hover:bg-gray-50">
-              <td className="border border-gray-300 py-2 px-3 text-[15px] text-gray-700 leading-tight">
+              <td className="border border-gray-300 py-2 px-3 text-[15px] text-gray-700 leading-tight w-40">
                 LG MUX / PIC(1R/2R/MFM) <br/> / D-KNC → 모니터
               </td>
               {COLS.map((col) => (
