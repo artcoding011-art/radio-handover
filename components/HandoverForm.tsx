@@ -212,21 +212,23 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
       const el = document.getElementById('handover-print-area');
       if (!el) throw new Error('Print area not found');
 
-      // html2canvas 옵션: 배경색 하얗게, 약간 스케일 키워서 선명하게
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/png');
+      // html2canvas 옵션: 해상도(scale)를 1로 낮추어 용량 감소
+      const canvas = await html2canvas(el, { scale: 1, backgroundColor: '#ffffff' });
       
+      // 이미지 포맷을 PNG 대비 용량이 훨씬 적은 JPEG로 변경 및 압축률(0.7) 설정
+      const imgData = canvas.toDataURL('image/jpeg', 0.7);
+      
+      // PDF 크기를 캔버스 크기에 딱 맞춤
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      // 이미지 비율에 맞춰 높이 계산
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // 'FAST' 압축 옵션 추가
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
       pdf.save(`인수인계서_${entry.date}.pdf`);
     } catch (error) {
       console.error('PDF export failed', error);
