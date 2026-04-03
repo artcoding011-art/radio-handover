@@ -212,11 +212,11 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
       const el = document.getElementById('handover-print-area');
       if (!el) throw new Error('Print area not found');
 
-      // html2canvas 옵션: 해상도(scale)를 1로 낮추어 용량 감소
-      const canvas = await html2canvas(el, { scale: 1, backgroundColor: '#ffffff' });
+      // html2canvas 옵션: 해상도(scale)를 1.5로 올려서 선명도 확보 (단축된 용량 유지)
+      const canvas = await html2canvas(el, { scale: 1.5, backgroundColor: '#ffffff' });
       
-      // 이미지 포맷을 PNG 대비 용량이 훨씬 적은 JPEG로 변경 및 압축률(0.7) 설정
-      const imgData = canvas.toDataURL('image/jpeg', 0.7);
+      // 이미지 포맷을 PNG 대비 용량이 훨씬 적은 JPEG로 변경 및 압축률(0.85) 설정
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
       
       // PDF 크기를 캔버스 크기에 딱 맞춤
       const imgWidth = canvas.width;
@@ -391,12 +391,12 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
         <label className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="text-gray-600 text-[15px] font-medium">근무자:</span>
           <input type="text" value={entry.근무자} onChange={(e) => updateTopLevel('근무자', e.target.value)}
-            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 w-24 text-[15px]" placeholder="이름" />
+            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
         </label>
         <label className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="text-gray-600 text-[15px] font-medium">결재자:</span>
           <input type="text" value={entry.결재자} onChange={(e) => updateTopLevel('결재자', e.target.value)}
-            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 w-24 text-[15px]" placeholder="이름" />
+            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
         </label>
         <div className="flex items-center gap-1.5 ml-4">
           <span className="text-gray-600 text-[15px] font-medium whitespace-nowrap">확인 :</span>
