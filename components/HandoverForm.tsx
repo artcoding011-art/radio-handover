@@ -390,13 +390,21 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
         <span className="text-gray-500 text-[15px] font-medium whitespace-nowrap min-w-fit">{dateDisplay}</span>
         <label className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="text-gray-600 text-[15px] font-medium">근무자:</span>
-          <input type="text" value={entry.근무자} onChange={(e) => updateTopLevel('근무자', e.target.value)}
-            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
+          {!isEditing ? (
+            <div className="border-b border-gray-300 px-1 pb-1 w-24 text-[15px] min-h-[28px] text-gray-800">{entry.근무자}</div>
+          ) : (
+            <input type="text" value={entry.근무자} onChange={(e) => updateTopLevel('근무자', e.target.value)}
+              className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
+          )}
         </label>
         <label className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="text-gray-600 text-[15px] font-medium">결재자:</span>
-          <input type="text" value={entry.결재자} onChange={(e) => updateTopLevel('결재자', e.target.value)}
-            className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
+          {!isEditing ? (
+            <div className="border-b border-gray-300 px-1 pb-1 w-24 text-[15px] min-h-[28px] text-gray-800">{entry.결재자}</div>
+          ) : (
+            <input type="text" value={entry.결재자} onChange={(e) => updateTopLevel('결재자', e.target.value)}
+              className="border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1 pb-1 w-24 text-[15px]" placeholder="이름" />
+          )}
         </label>
         <div className="flex items-center gap-1.5 ml-4">
           <span className="text-gray-600 text-[15px] font-medium whitespace-nowrap">확인 :</span>
