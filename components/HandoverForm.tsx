@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { HandoverEntry, ColumnValues, createEmptyEntry } from '@/lib/types'
 import SignaturePad from './SignaturePad'
-import { generateExcelHtml } from '@/lib/excel'
+
 
 export interface HandoverFormRef {
   save: () => Promise<boolean>
@@ -192,19 +192,45 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
     return false;
   }
 
-  function handleExportExcel() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExportPdf() {
     if (isNew || isEditing) {
       setDownloadError('저장되지 않아 다운받을수 없습니다.');
       return;
     }
-    const mht = generateExcelHtml(entry);
-    const blob = new Blob([mht], { type: 'application/vnd.ms-excel' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `인수인계서_${entry.date}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setDownloadError(null);
+    setIsExporting(true);
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const el = document.getElementById('handover-print-area');
+      if (!el) throw new Error('Print area not found');
+
+      // html2canvas 옵션: 배경색 하얗게, 약간 스케일 키워서 선명하게
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      // 이미지 비율에 맞춰 높이 계산
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`인수인계서_${entry.date}.pdf`);
+    } catch (error) {
+      console.error('PDF export failed', error);
+      setDownloadError('PDF 변환에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   function updateTopLevel(field: '근무자' | '결재자', value: string) {
@@ -258,7 +284,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-x-auto flex flex-col h-full relative">
+    <div id="handover-print-area" className="bg-white rounded-xl shadow-md overflow-x-auto flex flex-col h-full relative">
       {/* 저장 완료 팝업 */}
       {showSavePopup && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -328,15 +354,15 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
           <h2 className="font-bold text-[19px]">라디오 업무 인수인계서</h2>
           <p className="text-blue-200 text-[13px] mt-0.5">창원방송총국 기술국</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-html2canvas-ignore="true">
           {!isNew && !saved && <span className="text-sm bg-emerald-600 text-white px-2 py-0.5 rounded-full">저장됨</span>}
           {saved && <span className="text-sm bg-emerald-400 text-white px-2 py-0.5 rounded-full animate-pulse">✓ 저장 완료!</span>}
-          <button onClick={handleExportExcel}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white text-base px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+          <button onClick={handleExportPdf} disabled={isExporting}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-base px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm disabled:opacity-50">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Excel
+            {isExporting ? '변환 중...' : 'PDF'}
           </button>
           
           {isEditing ? (

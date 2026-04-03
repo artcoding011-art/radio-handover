@@ -88,8 +88,8 @@ export default function MainClient({ userId }: MainClientProps) {
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
   
-  // 새로 추가된 상단 탭 상태 ('업무인계서' | '제작일정' | 'mw' | 'dev')
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'dev'>('schedule')
+  // 새로 추가된 상단 탭 상태 ('업무인계서' | '제작일정' | 'mw')
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw'>('schedule')
 
   // JSZip 로드
   useEffect(() => {
@@ -474,12 +474,6 @@ export default function MainClient({ userId }: MainClientProps) {
             >
               M/W 점검
             </button>
-            <button 
-              onClick={() => setActiveMenu('dev')}
-              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'dev' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
-            >
-              개발내용
-            </button>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -500,7 +494,7 @@ export default function MainClient({ userId }: MainClientProps) {
         {/* 좌측 (Handover: 800px max, Schedule: 800px max, MW: 200px fixed) */}
         <div className={`
           ${activeMenu === 'mw' ? 'w-full max-w-[200px] flex-shrink-0' 
-            : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'dev') ? 'w-full max-w-[800px] flex-shrink-0' 
+            : (activeMenu === 'handover' || activeMenu === 'schedule') ? 'w-full max-w-[800px] flex-shrink-0' 
             : 'flex-1'} overflow-visible
         `}>
           {activeMenu === 'mw' ? (
@@ -509,10 +503,6 @@ export default function MainClient({ userId }: MainClientProps) {
               onDateChange={handleDateChangeRequest}
               refreshKey={mwRefreshKey}
             />
-          ) : activeMenu === 'dev' ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full items-center justify-center">
-              <p className="text-slate-300 font-bold italic">준비 중입니다.</p>
-            </div>
           ) : activeMenu === 'handover' ? (
             <HandoverForm 
               ref={formRef}
@@ -648,7 +638,7 @@ export default function MainClient({ userId }: MainClientProps) {
         </div>
 
         {/* 우측: 캘린더 + 정보 */}
-        <div className={`${activeMenu === 'mw' ? 'flex-1' : (activeMenu === 'handover' || activeMenu === 'dev') ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
+        <div className={`${activeMenu === 'mw' ? 'flex-1' : activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
 
           {/* 캘린더 대체 및 실제 캘린더 */}
           {activeMenu === 'mw' ? (
@@ -656,10 +646,6 @@ export default function MainClient({ userId }: MainClientProps) {
               date={selectedDate} 
               onSaveSuccess={() => setMwRefreshKey(prev => prev + 1)}
             />
-          ) : activeMenu === 'dev' ? (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-[600px] flex items-center justify-center">
-               <p className="text-slate-300 font-bold italic">준비 중입니다.</p>
-            </div>
           ) : activeMenu === 'handover' ? (
             <CalendarView
               selectedDate={selectedDate}

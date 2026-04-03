@@ -65,7 +65,7 @@ export default function ScheduleManager({
   onUpdated: () => void,
   onOptimisticSync: (w: WeeklyScheduleData | null, d: DailyScheduleData | null) => void
 }) {
-  const [tab, setTab] = useState<'weekly' | 'daily'>('weekly')
+  const [tab, setTab] = useState<'weekly' | 'daily'>('daily')
   
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(initialWeeklySchedule || createEmptyWeeklySchedule())
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(initialDailySchedule || createEmptyDailySchedule())

@@ -71,7 +71,6 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
   const [toastMessage, setToastMessage] = useState('저장되었습니다.')
 
   const handleSave = async () => {
-    // ... (unchanged validation)
     if (!data.temperature) { alert('온도를 입력해주세요.'); return }
     if (!data.humidity) { alert('습도를 입력해주세요.'); return }
     if (!data.inspector) { alert('점검자를 입력하세요.'); return }
