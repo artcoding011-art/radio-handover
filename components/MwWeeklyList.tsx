@@ -14,6 +14,11 @@ export default function MwWeeklyList({ selectedDate, onDateChange, refreshKey }:
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(startOfMonth(selectedDate))
   const [completedDates, setCompletedDates] = useState<string[]>([])
 
+  // Sync month view when selectedDate changes externally
+  useEffect(() => {
+    setCurrentMonthDate(startOfMonth(selectedDate))
+  }, [selectedDate])
+
   useEffect(() => {
     async function fetchCompletion() {
       try {

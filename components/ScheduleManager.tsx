@@ -97,11 +97,19 @@ export default function ScheduleManager({
   }
 
   useEffect(() => {
-    if (initialWeeklySchedule) setWeeklySchedule(initialWeeklySchedule)
+    if (initialWeeklySchedule) {
+      setWeeklySchedule(initialWeeklySchedule)
+    } else {
+      setWeeklySchedule(createEmptyWeeklySchedule())
+    }
   }, [initialWeeklySchedule])
 
   useEffect(() => {
-    if (initialDailySchedule) setDailySchedule(initialDailySchedule)
+    if (initialDailySchedule) {
+      setDailySchedule(initialDailySchedule)
+    } else {
+      setDailySchedule(createEmptyDailySchedule())
+    }
   }, [initialDailySchedule])
 
   useEffect(() => {

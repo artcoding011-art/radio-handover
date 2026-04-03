@@ -24,8 +24,8 @@ function createEmptyMwData(date: Date): MwInspectionData {
   }
   return {
     time: format(new Date(), 'HH:mm'),
-    temperature: '',
-    humidity: '',
+    temperature: '20',
+    humidity: '50',
     inspector: '',
     '1R_TX1': { ...emptyRow },
     '1R_TX2': { ...emptyRow },
@@ -158,10 +158,10 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
             {mediumLabel}
           </td>
         )}
-        <td className={`border-r border-gray-200 py-3 px-4 flex items-center justify-between transition-colors ${isOperating ? 'bg-blue-100/50' : ''}`}>
-          <span className={`font-bold transition-colors ${isOperating ? 'text-blue-900' : 'text-gray-700'} text-[14px]`}>{rowLabel}</span>
-          <label className="flex items-center gap-2 cursor-pointer group" title="동작 중인 TX 표시">
-            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isOperating ? 'bg-blue-600 border-blue-600 shadow-sm' : 'bg-white border-gray-300 group-hover:border-blue-400'}`}>
+        <td className={`border-r border-gray-200 py-3 px-4 flex items-center justify-between transition-colors w-44 shrink-0 ${isOperating ? 'bg-blue-100/50' : ''}`}>
+          <span className={`font-bold transition-colors ${isOperating ? 'text-blue-900' : 'text-gray-700'} text-[14px] whitespace-nowrap`}>{rowLabel}</span>
+          <label className="flex items-center gap-2 cursor-pointer group shrink-0" title="동작 중인 TX 표시">
+            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0 ${isOperating ? 'bg-blue-600 border-blue-600 shadow-sm' : 'bg-white border-gray-300 group-hover:border-blue-400'}`}>
               {isOperating && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
             </div>
             <input 
@@ -180,7 +180,7 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
                 }))
               }} 
             />
-            <span className={`text-[12px] font-bold transition-colors ${isOperating ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-600'}`}>동작</span>
+            <span className={`text-[12px] font-bold transition-colors whitespace-nowrap ${isOperating ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-600'}`}>동작</span>
           </label>
         </td>
         {(['pd', 'mpx', 'leftLvl', 'rightLvl', 'vs2', 'vsPlus', 'vsMinus', 't'] as (keyof MwDataRow)[]).map(field => (
@@ -304,7 +304,7 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
                       <line x1="0" y1="0" x2="100%" y2="100%" stroke="currentColor" strokeWidth="1"/>
                     </svg>
                   </th>
-                  <th className="border-r border-gray-300" />
+                  <th className="border-r border-gray-300 w-44" />
                   <th className="border-r border-gray-300 py-3 font-extrabold text-blue-800 text-[14px]">Pd</th>
                   <th className="border-r border-gray-300 py-3 font-bold text-gray-700 text-[13px] leading-tight">
                     MPX<br/><span className="font-medium text-[11px] text-gray-500">(주파수별 relative)(dB)</span>

@@ -464,7 +464,11 @@ export default function MainClient({ userId }: MainClientProps) {
               업무인계서
             </button>
             <button 
-              onClick={() => setActiveMenu('mw')}
+              onClick={() => {
+                const today = new Date()
+                handleDateChangeRequest(today)
+                setActiveMenu('mw')
+              }}
               className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
             >
               M/W 점검

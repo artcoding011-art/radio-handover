@@ -40,8 +40,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-blue-900">라디오 업무 인수인계서</h1>
-          <p className="text-gray-500 mt-2 text-sm">로그인하여 인수인계서를 작성하세요</p>
+          <h1 className="text-2xl font-bold text-blue-900">KBS창원 라디오 시스템</h1>
+          <p className="text-gray-500 mt-2 text-sm">로그인이 필요합니다</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
