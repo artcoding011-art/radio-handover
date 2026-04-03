@@ -202,6 +202,9 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
     setDownloadError(null);
     setIsExporting(true);
     
+    // 리액트 상태 업데이트 후 렌더링(스크롤 제거)을 기다림
+    await new Promise(r => setTimeout(r, 100));
+    
     try {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
@@ -284,7 +287,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
   }
 
   return (
-    <div id="handover-print-area" className="bg-white rounded-xl shadow-md overflow-x-auto flex flex-col h-full relative">
+    <div id="handover-print-area" className={`bg-white rounded-xl shadow-md flex flex-col relative ${isExporting ? 'h-auto overflow-visible' : 'h-full overflow-x-auto'}`}>
       {/* 저장 완료 팝업 */}
       {showSavePopup && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -358,7 +361,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
           {!isNew && !saved && <span className="text-sm bg-emerald-600 text-white px-2 py-0.5 rounded-full">저장됨</span>}
           {saved && <span className="text-sm bg-emerald-400 text-white px-2 py-0.5 rounded-full animate-pulse">✓ 저장 완료!</span>}
           <button onClick={handleExportPdf} disabled={isExporting}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white text-base px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm disabled:opacity-50">
+            className="bg-red-600 hover:bg-red-500 text-white text-base px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm disabled:opacity-50">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
@@ -404,7 +407,7 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
       </div>
 
       {/* 폼 */}
-      <div className="overflow-auto flex-1 p-4">
+      <div className={`p-4 ${isExporting ? 'overflow-visible h-auto' : 'overflow-auto flex-1'}`}>
         <table className="w-full min-w-[650px] border-collapse border border-gray-300 mx-auto">
           <tbody>
 
