@@ -8,7 +8,7 @@ import ScheduleCalendar from '@/components/ScheduleCalendar'
 import ScheduleManager from '@/components/ScheduleManager'
 import MwWeeklyList from '@/components/MwWeeklyList'
 import MwInspectionForm from '@/components/MwInspectionForm'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
 
@@ -466,7 +466,8 @@ export default function MainClient({ userId }: MainClientProps) {
             <button 
               onClick={() => {
                 const today = new Date()
-                handleDateChangeRequest(today)
+                const wednesday = addDays(today, 3 - today.getDay())
+                handleDateChangeRequest(wednesday)
                 setActiveMenu('mw')
               }}
               className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
