@@ -79,6 +79,7 @@ export default function MainClient({ userId }: MainClientProps) {
   const [isDirty, setIsDirty] = useState(false)
   const [pendingDate, setPendingDate] = useState<Date | null>(null)
   const [isDownloadingZip, setIsDownloadingZip] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
@@ -130,25 +131,94 @@ export default function MainClient({ userId }: MainClientProps) {
         return
       }
 
+      setBatchProgress({ current: 0, total: data.entries.length })
+      
       const zip = new window.JSZip()
-      data.entries.forEach((entry: any) => {
-        const fileName = `인수인계서_${entry.date}.xls`
-        const mht = generateExcelHtml(entry)
-        zip.file(fileName, mht)
-      })
+      
+      // Dynamic imports for batch rendering
+      const { createRoot } = await import('react-dom/client')
+      const html2canvas = (await import('html2canvas')).default
+      const { jsPDF } = await import('jspdf')
+      const HandoverForm = (await import('@/components/HandoverForm')).default
 
+      let spoolerContainer = document.getElementById('pdf-batch-spooler-container')
+      if (!spoolerContainer) {
+        spoolerContainer = document.createElement('div')
+        spoolerContainer.id = 'pdf-batch-spooler-container'
+        spoolerContainer.style.position = 'absolute'
+        spoolerContainer.style.top = '-9999px'
+        spoolerContainer.style.left = '-9999px'
+        // Sufficient width for desktop rendering layout
+        spoolerContainer.style.width = '1200px'
+        document.body.appendChild(spoolerContainer)
+      }
+
+      for (let i = 0; i < data.entries.length; i++) {
+        const entry = data.entries[i]
+        
+        await new Promise<void>((resolve, reject) => {
+           const root = createRoot(spoolerContainer!)
+           
+           const handleReady = async () => {
+             try {
+               const el = spoolerContainer!.querySelector('#handover-print-area') as HTMLElement
+               if (!el) throw new Error('Print area not found')
+               
+               // wait exactly 2 frames for any css transitions
+               await new Promise(r => setTimeout(r, 100))
+
+               const canvas = await html2canvas(el, { scale: 1.5, backgroundColor: '#ffffff' })
+               const imgData = canvas.toDataURL('image/jpeg', 0.85)
+               
+               const imgWidth = canvas.width
+               const imgHeight = canvas.height
+               const pdf = new jsPDF({
+                 orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+                 unit: 'px',
+                 format: [imgWidth, imgHeight]
+               })
+               pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST')
+               
+               const pdfArrayBuffer = pdf.output('arraybuffer')
+               zip.file(`인수인계서_${entry.date}.pdf`, pdfArrayBuffer)
+               
+               root.unmount()
+               setBatchProgress({ current: i + 1, total: data.entries.length })
+               resolve()
+             } catch (e) {
+               root.unmount()
+               console.error('Batch render error on', entry.date, e)
+               resolve() // ignore failure on a single file so others can continue
+             }
+           }
+
+           root.render(
+             <div className="p-10 font-sans" style={{ background: '#f9fafb' }}>
+               <HandoverForm date={new Date(entry.date)} batchEntry={entry} onBatchRenderReady={handleReady} />
+             </div>
+           )
+        })
+      }
+
+      setBatchProgress(prev => prev ? { ...prev, current: prev.total } : null)
+      
       const content = await zip.generateAsync({ type: 'blob' })
       const url = URL.createObjectURL(content)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${monthStr}_전체일지.zip`
+      a.download = `${monthStr}_전체일지_PDF.zip`
       a.click()
       URL.revokeObjectURL(url)
+      
+      if (spoolerContainer) {
+        spoolerContainer.remove()
+      }
     } catch (error) {
       console.error('Bulk download error:', error)
       alert('다운로드 중 오류가 발생했습니다.')
     } finally {
       setIsDownloadingZip(false)
+      setBatchProgress(null)
     }
   }
 
@@ -412,6 +482,54 @@ export default function MainClient({ userId }: MainClientProps) {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col relative">
       
+      {/* ── Progress Modal for Bulk Export ── */}
+      {isDownloadingZip && batchProgress && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center w-80 transform transition-all animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 mb-4 relative">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="transparent"
+                  className="text-gray-100"
+                />
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="transparent"
+                  strokeDasharray={2 * Math.PI * 28}
+                  strokeDashoffset={2 * Math.PI * 28 * (1 - batchProgress.current / batchProgress.total)}
+                  className="text-blue-600 transition-all duration-300"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold text-blue-600">
+                  {Math.round((batchProgress.current / batchProgress.total) * 100)}%
+                </span>
+              </div>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">PDF 변환 중...</h3>
+            <p className="text-sm text-gray-500 mb-2 text-center">
+              전체 {batchProgress.total}개 중 {batchProgress.current}개 완료
+            </p>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+              <div 
+                className="bg-blue-600 h-full transition-all duration-300" 
+                style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Document Unsaved Warning Modal ── */}
       {pendingDate && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">

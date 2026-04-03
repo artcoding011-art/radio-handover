@@ -81,7 +81,7 @@ export default function CalendarView({
           <button 
             onClick={(e) => { e.stopPropagation(); onDownloadMonthlyZip(); }}
             disabled={isDownloading}
-            className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1 rounded-lg border border-emerald-200 transition-all font-bold text-[12px] disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1 rounded-lg border border-red-200 transition-all font-bold text-[12px] disabled:opacity-50"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

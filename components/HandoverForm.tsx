@@ -15,6 +15,8 @@ interface HandoverFormProps {
   date: Date
   onSaved?: () => void
   onDirtyChange?: (isDirty: boolean) => void
+  batchEntry?: HandoverEntry
+  onBatchRenderReady?: () => void
 }
 
 // 입력 컬럼: 1R / 2R / MFM (매체 제거)
@@ -81,7 +83,7 @@ function DataRow({ label, values, onChange }: {
 }
 
 
-const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onSaved, onDirtyChange }, ref) => {
+const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onSaved, onDirtyChange, batchEntry, onBatchRenderReady }, ref) => {
   const dateStr = format(date, 'yyyy-MM-dd')
   const [entry, setEntry] = useState<HandoverEntry>(createEmptyEntry(dateStr))
   const [originalEntryStr, setOriginalEntryStr] = useState<string>('')
@@ -96,6 +98,23 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
   useEffect(() => {
+    // 배치 렌더링 모드일 경우 즉시 데이터 주입
+    if (batchEntry) {
+      setEntry(batchEntry)
+      setOriginalEntryStr(JSON.stringify(batchEntry))
+      setLoading(false)
+      setShowForm(true)
+      setIsEditing(false)
+      setIsNew(false)
+      if (onBatchRenderReady) {
+        // DOM 렌더링 될 때까지 한 프레임 대기 후 콜백
+        setTimeout(() => {
+          onBatchRenderReady()
+        }, 50)
+      }
+      return
+    }
+
     setLoading(true)
     setSaved(false)
     fetch(`/api/entries/${dateStr}`)
@@ -288,8 +307,9 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
     )
   }
 
+  const isExportMode = isExporting || !!batchEntry;
   return (
-    <div id="handover-print-area" className={`bg-white rounded-xl shadow-md flex flex-col relative ${isExporting ? 'h-auto overflow-visible' : 'h-full overflow-x-auto'}`}>
+    <div id="handover-print-area" className={`bg-white rounded-xl shadow-md flex flex-col relative ${isExportMode ? 'h-auto overflow-visible' : 'h-full overflow-x-auto'}`}>
       {/* 저장 완료 팝업 */}
       {showSavePopup && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
