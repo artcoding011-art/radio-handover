@@ -369,19 +369,31 @@ export async function getDailyTaskDates(): Promise<string[]> {
 }
 
 export async function getCompletedTaskDates(): Promise<string[]> {
-  const weekly = await getWeeklyTask()
-  if (!weekly) return []
+  // 1. 업무 데이터 로드
+  const weeklyTask = await getWeeklyTask()
+  if (!weeklyTask) return []
 
-  const { data: dailyRows, error } = supabase
+  const { data: dailyTaskRows } = supabase
     ? await supabase.from('schedules').select('id, data').like('id', 'task:daily:%')
-    : { data: await memoryStore.keys('task:daily:*').then(keys => Promise.all(keys.map(async k => ({ id: k, data: await memoryStore.get(k) })))), error: null }
+    : { data: await memoryStore.keys('task:daily:*').then(keys => Promise.all(keys.map(async k => ({ id: k, data: await memoryStore.get(k) })))) }
 
-  if (error) return []
+  // 2. 녹음 일정 데이터 로드 (동기화를 위해 필요)
+  const weeklySchedule = await getWeeklySchedule()
+  const { data: dailyScheduleRows } = supabase
+    ? await supabase.from('schedules').select('id, data').like('id', 'schedule:daily:%')
+    : { data: await memoryStore.keys('schedule:daily:*').then(keys => Promise.all(keys.map(async k => ({ id: k, data: await memoryStore.get(k) })))) }
 
   const completedDates: string[] = []
-  const dailyMap = new Map<string, any>()
-  dailyRows?.forEach((row: any) => {
-    dailyMap.set(row.id.replace('task:daily:', ''), row.data)
+  
+  // 맵핑 생성
+  const dailyTaskMap = new Map<string, any>()
+  dailyTaskRows?.forEach((row: any) => {
+    dailyTaskMap.set(row.id.replace('task:daily:', ''), row.data)
+  })
+
+  const dailyScheduleMap = new Map<string, any>()
+  dailyScheduleRows?.forEach((row: any) => {
+    dailyScheduleMap.set(row.id.replace('schedule:daily:', ''), row.data)
   })
 
   const today = new Date()
@@ -391,22 +403,50 @@ export async function getCompletedTaskDates(): Promise<string[]> {
     const dateStr = d.toISOString().split('T')[0]
     const dayIndex = d.getDay() as 0|1|2|3|4|5|6
 
-    const daily = dailyMap.get(dateStr)
-    const completedIds = daily?.completedTaskIds || []
-    const canceledIds = daily?.canceledWeeklyIds || []
+    // --- 업무(Tasks) 체크 ---
+    const dailyT = dailyTaskMap.get(dateStr)
+    const tCompletedIds = dailyT?.completedTaskIds || []
+    const tCanceledIds = dailyT?.canceledWeeklyIds || []
 
-    const weeklyProgs = (weekly[dayIndex] || []).filter((p: any) => !canceledIds.includes(p.id))
-    const dailyProgs = daily?.tasks || []
+    const weeklyTProgs = (weeklyTask[dayIndex] || []).filter((p: any) => !tCanceledIds.includes(p.id))
+    const dailyTProgs = dailyT?.tasks || []
     
-    const allProgsForDay = [...weeklyProgs, ...dailyProgs]
-    const totalItems = allProgsForDay.length
-    let completedItems = 0
+    // --- 녹음(Schedules) 체크 ---
+    const dailyS = dailyScheduleMap.get(dateStr)
+    const sCompletedIds = dailyS?.completedProgramIds || []
+    const sCanceledIds = dailyS?.canceledWeeklyIds || []
 
-    allProgsForDay.forEach(p => {
-      if (completedIds.includes(p.id)) completedItems++
+    const recordingProgs: any[] = []
+    if (weeklySchedule) {
+      (['1R', '2R', 'MFM'] as const).forEach(medium => {
+        (weeklySchedule[medium]?.[dayIndex] || []).forEach((p: any) => {
+          if (!sCanceledIds.includes(p.id)) recordingProgs.push(p)
+        })
+      })
+    }
+    if (dailyS) {
+      (['1R', '2R', 'MFM'] as const).forEach(medium => {
+        (dailyS[medium] || []).forEach((p: any) => recordingProgs.push(p))
+      })
+    }
+    
+    // --- 전체 병합 및 완료 확인 ---
+    const allItems = [...weeklyTProgs, ...dailyTProgs, ...recordingProgs]
+    const totalCount = allItems.length
+    if (totalCount === 0) continue
+
+    let completedCount = 0
+    // 업무 완료 확인
+    const taskIds = [...weeklyTProgs, ...dailyTProgs].map(p => p.id)
+    taskIds.forEach(id => {
+      if (tCompletedIds.includes(id)) completedCount++
+    })
+    // 녹음 완료 확인
+    recordingProgs.forEach(p => {
+      if (sCompletedIds.includes(p.id)) completedCount++
     })
 
-    if (totalItems > 0 && totalItems === completedItems) {
+    if (totalCount === completedCount) {
       completedDates.push(dateStr)
     }
   }
