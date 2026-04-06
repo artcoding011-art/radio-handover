@@ -928,7 +928,7 @@ export default function MainClient({ userId }: MainClientProps) {
                                 ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500 shadow-emerald-100'
                                 : (task.isDaily 
                                   ? 'bg-amber-50/60 border-amber-200 border-l-4 border-l-amber-500 shadow-amber-100' 
-                                  : 'bg-white border-indigo-100 border-l-4 border-l-transparent'
+                                  : 'bg-indigo-50/60 border-indigo-200 border-l-4 border-l-indigo-500 shadow-indigo-100'
                                 )} 
                               ${isCompleted ? 'opacity-50 bg-gray-50 border-gray-200 grayscale-[0.5]' : ''}`}>
                               <div className="flex-1 flex items-center gap-3">
