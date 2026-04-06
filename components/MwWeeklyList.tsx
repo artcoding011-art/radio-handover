@@ -64,7 +64,7 @@ export default function MwWeeklyList({ selectedDate, onDateChange, refreshKey }:
   const wednesdays = getWednesdays(currentMonthDate)
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 flex flex-col h-full overflow-hidden">
+    <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 flex flex-col h-fit overflow-hidden">
       <div className="flex flex-col gap-3 border-b pb-4 mb-4 flex-shrink-0 text-center">
         <h2 className="text-lg font-bold text-gray-800 flex flex-col items-center">
           M/W 점검 일정 

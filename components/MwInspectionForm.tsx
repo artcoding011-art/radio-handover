@@ -146,56 +146,103 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
     }))
   }
 
-  const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven }: { mediumLabel?: string, rowLabel: string, rowKey: keyof Omit<MwInspectionData, 'time'|'temperature'|'humidity'|'inspector'>, isEven: boolean }) => {
-    const rowData = data[rowKey] as MwDataRow
-    const isOperating = rowData.isOperating
+// --- Sub-components moved outside to prevent re-mounting on every parent render ---
 
-    return (
-      <tr className={`border-b border-gray-200 transition-colors ${isOperating ? 'bg-blue-50/80 shadow-inner' : (isEven ? 'bg-gray-50/50' : 'bg-white')}`}>
-        {mediumLabel && (
-          <td rowSpan={2} className={`border-r border-gray-200 text-center font-bold text-gray-700 align-middle transition-colors ${isOperating ? 'bg-blue-100/30' : 'bg-gray-50/80'}`}>
-            {mediumLabel}
-          </td>
-        )}
-        <td className={`border-r border-gray-200 py-3 px-4 flex items-center justify-between transition-colors w-44 shrink-0 ${isOperating ? 'bg-blue-100/50' : ''}`}>
-          <span className={`font-bold transition-colors ${isOperating ? 'text-blue-900' : 'text-gray-700'} text-[14px] whitespace-nowrap`}>{rowLabel}</span>
-          <label className="flex items-center gap-2 cursor-pointer group shrink-0" title="동작 중인 TX 표시">
-            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0 ${isOperating ? 'bg-blue-600 border-blue-600 shadow-sm' : 'bg-white border-gray-300 group-hover:border-blue-400'}`}>
-              {isOperating && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
-            </div>
-            <input 
-              type="checkbox" 
-              className="hidden" 
-              checked={isOperating} 
-              onChange={(e) => {
-                // When toggling one TX, we should likely untoggle the other for the same medium
-                const medium = rowKey.split('_')[0]
-                const tx1Key = `${medium}_TX1` as keyof MwInspectionData
-                const tx2Key = `${medium}_TX2` as keyof MwInspectionData
-                setData(prev => ({
-                  ...prev,
-                  [tx1Key]: { ...(prev[tx1Key] as MwDataRow), isOperating: rowKey === tx1Key ? e.target.checked : false },
-                  [tx2Key]: { ...(prev[tx2Key] as MwDataRow), isOperating: rowKey === tx2Key ? e.target.checked : false }
-                }))
-              }} 
-            />
-            <span className={`text-[12px] font-bold transition-colors whitespace-nowrap ${isOperating ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-600'}`}>동작</span>
-          </label>
+interface MwInputProps {
+  value: string
+  onChange: (val: string) => void
+  className?: string
+  isOperating?: boolean
+  placeholder?: string
+}
+
+function MwInput({ value, onChange, className, isOperating, placeholder }: MwInputProps) {
+  const [localValue, setLocalValue] = useState(value)
+
+  // Update local value if parent value changes (e.g. from a different source or reset)
+  useEffect(() => {
+    setLocalValue(value)
+  }, [value])
+
+  return (
+    <input 
+      type="text" 
+      value={localValue} 
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={() => {
+        if (localValue !== value) {
+          onChange(localValue)
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          (e.target as HTMLInputElement).blur()
+        }
+      }}
+      placeholder={placeholder}
+      className={className}
+    />
+  )
+}
+
+interface DataRowComponentProps {
+  mediumLabel?: string
+  rowLabel: string
+  rowKey: keyof Omit<MwInspectionData, 'time'|'temperature'|'humidity'|'inspector'>
+  isEven: boolean
+  data: MwInspectionData
+  setData: React.Dispatch<React.SetStateAction<MwInspectionData>>
+  updateRow: (rowKey: any, field: any, value: any) => void
+}
+
+const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData, updateRow }: DataRowComponentProps) => {
+  const rowData = data[rowKey] as MwDataRow
+  const isOperating = rowData.isOperating
+
+  return (
+    <tr className={`border-b border-gray-200 transition-colors ${isOperating ? 'bg-blue-50/80 shadow-inner' : (isEven ? 'bg-gray-50/50' : 'bg-white')}`}>
+      {mediumLabel && (
+        <td rowSpan={2} className={`border-r border-gray-200 text-center font-bold text-gray-700 align-middle transition-colors ${isOperating ? 'bg-blue-100/30' : 'bg-gray-50/80'}`}>
+          {mediumLabel}
         </td>
-        {(['pd', 'mpx', 'leftLvl', 'rightLvl', 'vs2', 'vsPlus', 'vsMinus', 't'] as (keyof MwDataRow)[]).map(field => (
-          <td key={field} className="border-r border-gray-200 p-0 text-center last:border-r-0">
-            <input 
-              type="text" 
-              value={rowData[field] as string} 
-              onChange={(e) => updateRow(rowKey, field, e.target.value)}
-              className={`w-full text-center py-3 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400 text-[15px] transition-all
-                ${isOperating ? 'font-black text-blue-900 drop-shadow-sm' : 'font-medium text-gray-800'}`}
-            />
-          </td>
-        ))}
-      </tr>
-    )
-  }
+      )}
+      <td className={`border-r border-gray-200 py-3 px-4 flex items-center justify-between transition-colors w-44 shrink-0 ${isOperating ? 'bg-blue-100/50' : ''}`}>
+        <span className={`font-bold transition-colors ${isOperating ? 'text-blue-900' : 'text-gray-700'} text-[14px] whitespace-nowrap`}>{rowLabel}</span>
+        <label className="flex items-center gap-2 cursor-pointer group shrink-0" title="동작 중인 TX 표시">
+          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0 ${isOperating ? 'bg-blue-600 border-blue-600 shadow-sm' : 'bg-white border-gray-300 group-hover:border-blue-400'}`}>
+            {isOperating && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+          </div>
+          <input 
+            type="checkbox" 
+            className="hidden" 
+            checked={isOperating} 
+            onChange={(e) => {
+              const medium = (rowKey as string).split('_')[0]
+              const tx1Key = `${medium}_TX1` as keyof MwInspectionData
+              const tx2Key = `${medium}_TX2` as keyof MwInspectionData
+              setData(prev => ({
+                ...prev,
+                [tx1Key]: { ...(prev[tx1Key] as MwDataRow), isOperating: (rowKey as string) === tx1Key ? e.target.checked : false },
+                [tx2Key]: { ...(prev[tx2Key] as MwDataRow), isOperating: (rowKey as string) === tx2Key ? e.target.checked : false }
+              }))
+            }} 
+          />
+          <span className={`text-[12px] font-bold transition-colors whitespace-nowrap ${isOperating ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-600'}`}>동작</span>
+        </label>
+      </td>
+      {(['pd', 'mpx', 'leftLvl', 'rightLvl', 'vs2', 'vsPlus', 'vsMinus', 't'] as (keyof MwDataRow)[]).map(field => (
+        <td key={field} className="border-r border-gray-200 p-0 text-center last:border-r-0">
+          <MwInput 
+            value={rowData[field] as string} 
+            onChange={(val) => updateRow(rowKey, field, val)}
+            className={`w-full text-center py-3 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400 text-[15px] transition-all
+              ${isOperating ? 'font-black text-blue-900 drop-shadow-sm' : 'font-medium text-gray-800'}`}
+          />
+        </td>
+      ))}
+    </tr>
+  )
+}
 
   if (loading) {
     return (
@@ -262,11 +309,10 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
               </div>
               <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-gray-400 font-bold mr-1">(</span>
-                <input 
-                  type="text" 
+                <MwInput 
                   className="w-12 bg-transparent text-center font-bold text-gray-700 focus:outline-none text-[15px]" 
                   value={data.time} 
-                  onChange={e => updateHeader('time', e.target.value)} 
+                  onChange={val => updateHeader('time', val)} 
                   placeholder="09:00"
                 />
                 <span className="text-gray-400 font-bold ml-1">)</span>
@@ -276,17 +322,17 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-gray-500 font-bold text-[14px]">온도:</span>
-                <input type="text" className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.temperature} onChange={e => updateHeader('temperature', e.target.value)} />
+                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.temperature} onChange={val => updateHeader('temperature', val)} />
                 <span className="text-gray-500 font-bold ml-1">℃</span>
               </div>
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-gray-500 font-bold text-[14px]">습도:</span>
-                <input type="text" className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.humidity} onChange={e => updateHeader('humidity', e.target.value)} />
+                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.humidity} onChange={val => updateHeader('humidity', val)} />
                 <span className="text-gray-500 font-bold ml-1">%</span>
               </div>
               <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-blue-700 font-extrabold text-[14px]">점검자 :</span>
-                <input type="text" className="w-[90px] bg-transparent focus:outline-none font-bold text-blue-900 border-b border-blue-200" value={data.inspector} onChange={e => updateHeader('inspector', e.target.value)} placeholder="이름 입력" />
+                <MwInput className="w-[90px] bg-transparent focus:outline-none font-bold text-blue-900 border-b border-blue-200" value={data.inspector} onChange={val => updateHeader('inspector', val)} placeholder="이름 입력" />
               </div>
             </div>
           </div>
@@ -328,12 +374,12 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
                 </tr>
               </thead>
               <tbody>
-                <DataRowComponent mediumLabel="1R" rowLabel="TX-1 (주)" rowKey="1R_TX1" isEven={false} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="1R_TX2" isEven={true} />
-                <DataRowComponent mediumLabel="2R" rowLabel="TX-1 (주)" rowKey="2R_TX1" isEven={false} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="2R_TX2" isEven={true} />
-                <DataRowComponent mediumLabel="MFM" rowLabel="TX-1 (주)" rowKey="MFM_TX1" isEven={false} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="MFM_TX2" isEven={true} />
+                <DataRowComponent mediumLabel="1R" rowLabel="TX-1 (주)" rowKey="1R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="1R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent mediumLabel="2R" rowLabel="TX-1 (주)" rowKey="2R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="2R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent mediumLabel="MFM" rowLabel="TX-1 (주)" rowKey="MFM_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="MFM_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
               </tbody>
             </table>
           </div>
