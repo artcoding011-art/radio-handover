@@ -199,6 +199,103 @@ export async function getDailyTask(date: string): Promise<any> {
   return data?.data || null
 }
 
+export async function saveDailyStaff(date: string, data: any): Promise<void> {
+  const id = `staff:daily:${date}`
+  if (!supabase) return memoryStore.set(id, data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id, data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving daily staff to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getDailyStaff(date: string): Promise<any> {
+  const id = `staff:daily:${date}`
+  if (!supabase) return memoryStore.get(id)
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting daily staff from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function getDailyStaffDates(): Promise<{ dates: string[], colors: Record<string, string[]> }> {
+  if (!supabase) {
+    const keys = await memoryStore.keys('staff:daily:*')
+    // memoryStore fallback.. (로컬 환경 테스트용이므로 깊게 처리 생략 또는 대충 처리)
+    return { dates: keys.map((k: string) => k.replace('staff:daily:', '')), colors: {} }
+  }
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('id, data')
+    .like('id', 'staff:daily:%')
+
+  if (error) {
+    console.error('Error getting staff dates from Supabase:', error)
+    return { dates: [], colors: {} }
+  }
+
+  const staffDates: string[] = []
+  const colors: Record<string, string[]> = {}
+  
+  for (const row of (data || [])) {
+    const staffData = row.data
+    if (staffData.assignments?.length > 0) {
+      const dateStr = row.id.replace('staff:daily:', '')
+      staffDates.push(dateStr)
+      colors[dateStr] = staffData.assignments.filter((a: any) => a.name.trim() !== '').map((a: any) => a.color)
+    }
+  }
+
+  return { dates: staffDates.sort(), colors }
+}
+
+export async function saveGlobalStaff(data: any): Promise<void> {
+  const id = `staff:global`
+  if (!supabase) return memoryStore.set(id, data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id, data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving global staff to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getGlobalStaff(): Promise<any> {
+  const id = `staff:global`
+  if (!supabase) return memoryStore.get(id)
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting global staff from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+
 export async function saveMwInspection(date: string, data: any): Promise<void> {
   const id = `mw_inspection:${date}`
   if (!supabase) return memoryStore.set(id, data)

@@ -43,6 +43,29 @@ export interface DailyTaskData {
   completedTaskIds?: string[];
 }
 
+export type WorkShift = '오전(09:00~14:00)' | '오후(14:00~18:00)' | '종일(09:00~18:00)';
+export type StaffRole = '주 근무자' | '부 근무자';
+
+export interface GlobalStaff {
+  id: string;
+  name: string;
+  role: StaffRole;
+  color: string;
+}
+
+export interface StaffAssignment {
+  id: string;
+  staffId?: string;
+  name: string;
+  role: StaffRole;
+  shift: WorkShift;
+  color: string;
+}
+
+export interface DailyStaffData {
+  assignments: StaffAssignment[];
+}
+
 export interface HandoverEntry {
   date: string // YYYY-MM-DD
   근무자: string

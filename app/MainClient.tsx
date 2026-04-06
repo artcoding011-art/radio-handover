@@ -10,6 +10,9 @@ import MwWeeklyList from '@/components/MwWeeklyList'
 import MwInspectionForm from '@/components/MwInspectionForm'
 import TaskCalendar from '@/components/TaskCalendar'
 import TaskManager from '@/components/TaskManager'
+import StaffCalendar from '@/components/StaffCalendar'
+import StaffManager from '@/components/StaffManager'
+import StaffScheduleInput from '@/components/StaffScheduleInput'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
@@ -23,8 +26,6 @@ declare global {
 interface MainClientProps {
   userId: string
 }
-
-import { WeeklyScheduleData, DailyScheduleData, WeeklyTaskData, DailyTaskData, TaskItem } from '@/lib/types'
 
 interface SelectedInfo {
   특이사항: string
@@ -92,12 +93,18 @@ export default function MainClient({ userId }: MainClientProps) {
   const [taskDates, setTaskDates] = useState<string[]>([])
   const [completedTaskDates, setCompletedTaskDates] = useState<string[]>([])
   
+  // 근무자 관련 상태
+  const [dailyStaff, setDailyStaff] = useState<DailyStaffData | null>(null)
+  const [globalStaff, setGlobalStaff] = useState<GlobalStaff[]>([])
+  const [staffDates, setStaffDates] = useState<string[]>([])
+  const [staffColorsMap, setStaffColorsMap] = useState<Record<string, string[]>>({})
+
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<{ id: string, isDaily: boolean } | null>(null)
   
   // 새로 추가된 상단 탭 상태
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task'>('schedule')
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task' | 'staff'>('schedule')
 
   // JSZip 로드
   useEffect(() => {
@@ -374,6 +381,44 @@ export default function MainClient({ userId }: MainClientProps) {
     }
   }, [])
 
+  const fetchGlobalStaff = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/staff/global?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGlobalStaff(data.staff || [])
+      }
+    } catch {}
+  }, [])
+
+  const fetchStaffDates = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/staff/daily/dates?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStaffDates(data.dates || [])
+        if (data.colors) {
+          setStaffColorsMap(data.colors)
+        }
+      }
+    } catch {}
+  }, [])
+
+  const fetchDailyStaff = useCallback(async (date: Date) => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const res = await fetch(`/api/staff/daily/${dateStr}?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDailyStaff(data.staff || null)
+      } else {
+        setDailyStaff(null)
+      }
+    } catch {
+      setDailyStaff(null)
+    }
+  }, [])
+
   useEffect(() => { fetchDates() }, [fetchDates])
   useEffect(() => { 
     fetchWeeklySchedule() 
@@ -382,13 +427,18 @@ export default function MainClient({ userId }: MainClientProps) {
     fetchWeeklyTask()
     fetchTaskDates()
     fetchCompletedTaskDates()
-  }, [fetchWeeklySchedule, fetchRecordingDates, fetchCompletedDates, fetchWeeklyTask, fetchTaskDates, fetchCompletedTaskDates])
+    fetchStaffDates()
+    fetchGlobalStaff()
+  }, [fetchWeeklySchedule, fetchRecordingDates, fetchCompletedDates, fetchWeeklyTask, fetchTaskDates, fetchCompletedTaskDates, fetchStaffDates, fetchGlobalStaff])
+  
   useEffect(() => { 
     fetchDailySchedule(selectedDate)
     fetchCompletedDates()
     fetchDailyTask(selectedDate)
     fetchCompletedTaskDates()
-  }, [selectedDate, fetchDailySchedule, fetchCompletedDates, fetchDailyTask, fetchCompletedTaskDates])
+    fetchDailyStaff(selectedDate)
+  }, [selectedDate, fetchDailySchedule, fetchCompletedDates, fetchDailyTask, fetchCompletedTaskDates, fetchDailyStaff])
+
 
   const requestDeleteTodayProgram = (medium: '1R'|'2R'|'MFM', progId: string, isDaily: boolean) => {
     setDeleteTarget({ medium, id: progId, isDaily })
@@ -799,6 +849,12 @@ export default function MainClient({ userId }: MainClientProps) {
             >
               M/W 점검
             </button>
+            <button 
+              onClick={() => setActiveMenu('staff')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'staff' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              근무자
+            </button>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -819,7 +875,7 @@ export default function MainClient({ userId }: MainClientProps) {
         {/* 좌측 (Handover: 800px max, Schedule: 800px max, MW: 200px fixed) */}
         <div className={`
           ${activeMenu === 'mw' ? 'w-full max-w-[200px] flex-shrink-0' 
-            : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'task') ? 'w-full max-w-[800px] flex-shrink-0' 
+            : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'task' || activeMenu === 'staff') ? 'w-full max-w-[800px] flex-shrink-0' 
             : 'flex-1'} overflow-visible
         `}>
           {activeMenu === 'mw' ? (
@@ -835,6 +891,30 @@ export default function MainClient({ userId }: MainClientProps) {
               onSaved={handleSaved} 
               onDirtyChange={setIsDirty} 
               tasksString={tasksString}
+            />
+          ) : activeMenu === 'staff' ? (
+            <StaffManager 
+              date={selectedDate}
+              dailyStaff={dailyStaff}
+              globalStaff={globalStaff}
+              onSaveDailyStaff={async (data) => {
+                const dateStr = format(selectedDate, 'yyyy-MM-dd')
+                await fetch(`/api/staff/daily/${dateStr}?_t=${Date.now()}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+                })
+                fetchDailyStaff(selectedDate)
+                fetchStaffDates()
+              }}
+              onSaveGlobalStaff={async (data) => {
+                await fetch(`/api/staff/global?_t=${Date.now()}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+                })
+                fetchGlobalStaff()
+              }}
             />
           ) : activeMenu === 'task' ? (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col h-full overflow-hidden">
@@ -1152,6 +1232,79 @@ export default function MainClient({ userId }: MainClientProps) {
                 />
               );
             })()
+          ) : activeMenu === 'staff' ? (
+            <div className="flex flex-col gap-3 h-full">
+              <StaffCalendar
+                selectedDate={selectedDate}
+                onDateChange={handleDateChangeRequest}
+                onMonthChange={handleMonthChange}
+                staffColorsMap={staffColorsMap}
+              />
+              <StaffScheduleInput
+                selectedDate={selectedDate}
+                globalStaff={globalStaff}
+                onAddSchedule={async (staff, shift) => {
+                  const newAssignment = {
+                    id: `staff_${Date.now()}_${Math.random()}`,
+                    staffId: staff.id,
+                    name: staff.name,
+                    role: staff.role,
+                    color: staff.color,
+                    shift
+                  }
+                  const updatedAssignments = [...(dailyStaff?.assignments || []), newAssignment]
+                  const dateStr = format(selectedDate, 'yyyy-MM-dd')
+                  await fetch(`/api/staff/daily/${dateStr}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assignments: updatedAssignments })
+                  })
+                  fetchDailyStaff(selectedDate)
+                  fetchStaffDates()
+                }}
+                onBulkAddWeekdays={async (staff, shift) => {
+                  // 현재 달(currentMonth)의 월~금 날짜를 구해서 일괄 등록
+                  const year = currentMonth.getFullYear()
+                  const monthIndex = currentMonth.getMonth()
+                  const numDays = new Date(year, monthIndex + 1, 0).getDate()
+                  
+                  const datesToUpdate = []
+                  for (let i = 1; i <= numDays; i++) {
+                    const d = new Date(year, monthIndex, i)
+                    const dayOfWeek = d.getDay()
+                    // 1(월) ~ 5(금)
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                      datesToUpdate.push(format(d, 'yyyy-MM-dd'))
+                    }
+                  }
+                  
+                  if (datesToUpdate.length > 0) {
+                    const res = await fetch(`/api/staff/bulk`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        dates: datesToUpdate,
+                        assignment: {
+                          staffId: staff.id,
+                          name: staff.name,
+                          role: staff.role,
+                          color: staff.color,
+                          shift
+                        }
+                      })
+                    })
+                    if (!res.ok) {
+                      const errorData = await res.json().catch(() => ({}))
+                      alert(`일괄 입력 실패 (서버 에러 ${res.status}): ${errorData.message || '알 수 없는 오류'}`)
+                      return
+                    }
+                  }
+                  
+                  await fetchDailyStaff(selectedDate)
+                  await fetchStaffDates()
+                }}
+              />
+            </div>
           ) : activeMenu === 'handover' ? (
             <CalendarView
               selectedDate={selectedDate}
