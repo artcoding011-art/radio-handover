@@ -660,7 +660,7 @@ export default function MainClient({ userId }: MainClientProps) {
             id: `rec_${prog.id}`,
             startTime: prog.startTime,
             endTime: prog.endTime,
-            taskName: `[${medium}] ${prog.programName} 녹음`,
+            taskName: `[${medium}] ${prog.programName}`,
             isDaily: true,
             isRecording: true
           });
@@ -859,7 +859,7 @@ export default function MainClient({ userId }: MainClientProps) {
                             realId: prog.id,
                             startTime: prog.startTime,
                             endTime: prog.endTime,
-                            taskName: `[${medium}] ${prog.programName} 녹음`,
+                            taskName: `[${medium}] ${prog.programName}`,
                             isDaily: true,
                             isRecording: true
                           });
@@ -1138,14 +1138,20 @@ export default function MainClient({ userId }: MainClientProps) {
               onSaveSuccess={() => setMwRefreshKey(prev => prev + 1)}
             />
           ) : activeMenu === 'task' ? (
-            <TaskCalendar
-              selectedDate={selectedDate}
-              onDateChange={handleDateChangeRequest}
-              onMonthChange={handleMonthChange}
-              taskDates={taskDates}
-              completedDates={completedTaskDates}
-              recordingDates={recordingDates}
-            />
+            (() => {
+              const activeWeeklyDays = [0, 1, 2, 3, 4, 5, 6].filter(d => (weeklyTask?.[d as keyof typeof weeklyTask]?.length || 0) > 0);
+              return (
+                <TaskCalendar
+                  selectedDate={selectedDate}
+                  onDateChange={handleDateChangeRequest}
+                  onMonthChange={handleMonthChange}
+                  taskDates={taskDates}
+                  completedDates={completedTaskDates}
+                  recordingDates={recordingDates}
+                  weeklyDays={activeWeeklyDays}
+                />
+              );
+            })()
           ) : activeMenu === 'handover' ? (
             <CalendarView
               selectedDate={selectedDate}

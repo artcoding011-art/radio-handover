@@ -13,6 +13,7 @@ interface TaskCalendarProps {
   taskDates?: string[]
   completedDates?: string[]
   recordingDates?: string[]
+  weeklyDays?: number[]
 }
 
 export default function TaskCalendar({ 
@@ -21,7 +22,8 @@ export default function TaskCalendar({
   onMonthChange,
   taskDates = [],
   completedDates = [],
-  recordingDates = []
+  recordingDates = [],
+  weeklyDays = []
 }: TaskCalendarProps) {
   
   function handleChange(value: Value) {
@@ -52,8 +54,9 @@ export default function TaskCalendar({
             if (view === 'month') {
               const dateStr = format(date, 'yyyy-MM-dd')
               const isCompleted = completedDates.includes(dateStr)
-              const hasTask = taskDates.includes(dateStr)
+              const hasDaily = taskDates.includes(dateStr)
               const hasRecording = recordingDates.includes(dateStr)
+              const hasWeekly = weeklyDays.includes(date.getDay())
 
               return (
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-[2px] pointer-events-none">
@@ -64,13 +67,16 @@ export default function TaskCalendar({
                        </svg>
                     </div>
                   )}
-                  {(hasTask || hasRecording) && (
+                  {(hasDaily || hasRecording || hasWeekly) && (
                     <div className="w-[85%] flex gap-[2px] justify-center z-10 px-1 hover:w-[100%] transition-all opacity-90">
                       {hasRecording && (
                         <div className="flex-1 h-[4px] bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                       )}
-                      {hasTask && (
+                      {hasDaily && (
                         <div className="flex-1 h-[4px] bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                      )}
+                      {hasWeekly && (
+                        <div className="flex-1 h-[4px] bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
                       )}
                     </div>
                   )}
@@ -88,6 +94,10 @@ export default function TaskCalendar({
           <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-100 border border-blue-300 inline-block" />
             <span>오늘</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-1 bg-indigo-500 rounded-full shadow-[0_0_4px_rgba(99,102,241,0.6)]" />
+            <span>주간업무</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-1 bg-emerald-500 rounded-full shadow-[0_0_4px_rgba(16,185,129,0.6)]" />

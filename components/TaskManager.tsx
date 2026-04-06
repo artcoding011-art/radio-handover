@@ -209,7 +209,7 @@ export default function TaskManager({
           realId: prog.id,
           startTime: prog.startTime,
           endTime: prog.endTime,
-          taskName: `[${medium}] ${prog.programName} 녹음`,
+          taskName: `[${medium}] ${prog.programName}`,
           isRecording: true
         });
       });
