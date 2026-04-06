@@ -17,6 +17,7 @@ interface HandoverFormProps {
   onDirtyChange?: (isDirty: boolean) => void
   batchEntry?: HandoverEntry
   onBatchRenderReady?: () => void
+  tasksString?: string
 }
 
 // 입력 컬럼: 1R / 2R / MFM (매체 제거)
@@ -83,7 +84,7 @@ function DataRow({ label, values, onChange }: {
 }
 
 
-const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onSaved, onDirtyChange, batchEntry, onBatchRenderReady }, ref) => {
+const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onSaved, onDirtyChange, batchEntry, onBatchRenderReady, tasksString }, ref) => {
   const dateStr = format(date, 'yyyy-MM-dd')
   const [entry, setEntry] = useState<HandoverEntry>(createEmptyEntry(dateStr))
   const [originalEntryStr, setOriginalEntryStr] = useState<string>('')
@@ -134,6 +135,9 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
           if (defaultSign) {
             empty.서명 = defaultSign
           }
+          if (tasksString) {
+            empty.rStudio.현업주요사항 = tasksString
+          }
           setEntry(empty)
           setOriginalEntryStr(JSON.stringify(empty))
           setIsNew(true)
@@ -143,6 +147,9 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
       })
       .catch(() => { 
         const empty = createEmptyEntry(dateStr)
+        if (tasksString) {
+          empty.rStudio.현업주요사항 = tasksString
+        }
         setEntry(empty)
         setOriginalEntryStr(JSON.stringify(empty))
         setShowForm(false); setIsEditing(true) 

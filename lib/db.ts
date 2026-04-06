@@ -137,6 +137,68 @@ export async function getDailySchedule(date: string): Promise<any> {
   return data?.data || null
 }
 
+export async function saveWeeklyTask(data: any): Promise<void> {
+  if (!supabase) return memoryStore.set('calendar_task', data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id: 'calendar_task', data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving weekly task to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getWeeklyTask(): Promise<any> {
+  if (!supabase) return memoryStore.get('calendar_task')
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', 'calendar_task')
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting weekly task from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
+export async function saveDailyTask(date: string, data: any): Promise<void> {
+  const id = `task:daily:${date}`
+  if (!supabase) return memoryStore.set(id, data)
+
+  const { error } = await supabase
+    .from('schedules')
+    .upsert({ id, data, updated_at: new Date().toISOString() })
+
+  if (error) {
+    console.error('Error saving daily task to Supabase:', error)
+    throw error
+  }
+}
+
+export async function getDailyTask(date: string): Promise<any> {
+  const id = `task:daily:${date}`
+  if (!supabase) return memoryStore.get(id)
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('data')
+    .eq('id', id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting daily task from Supabase:', error)
+    return null
+  }
+
+  return data?.data || null
+}
+
 export async function saveMwInspection(date: string, data: any): Promise<void> {
   const id = `mw_inspection:${date}`
   if (!supabase) return memoryStore.set(id, data)
@@ -273,6 +335,76 @@ export async function getCompletedScheduleDates(): Promise<string[]> {
         if (completedIds.includes(p.id)) completedItems++
       })
     }
+
+    if (totalItems > 0 && totalItems === completedItems) {
+      completedDates.push(dateStr)
+    }
+  }
+
+  return completedDates
+}
+
+export async function getDailyTaskDates(): Promise<string[]> {
+  if (!supabase) return memoryStore.keys('task:daily:*')
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('id, data')
+    .like('id', 'task:daily:%')
+
+  if (error) {
+    console.error('Error getting task dates from Supabase:', error)
+    return []
+  }
+
+  const taskDates: string[] = []
+  for (const row of (data || [])) {
+    const taskData = row.data
+    if (taskData.tasks?.length > 0) {
+      taskDates.push(row.id.replace('task:daily:', ''))
+    }
+  }
+
+  return taskDates.sort()
+}
+
+export async function getCompletedTaskDates(): Promise<string[]> {
+  const weekly = await getWeeklyTask()
+  if (!weekly) return []
+
+  const { data: dailyRows, error } = supabase
+    ? await supabase.from('schedules').select('id, data').like('id', 'task:daily:%')
+    : { data: await memoryStore.keys('task:daily:*').then(keys => Promise.all(keys.map(async k => ({ id: k, data: await memoryStore.get(k) })))), error: null }
+
+  if (error) return []
+
+  const completedDates: string[] = []
+  const dailyMap = new Map<string, any>()
+  dailyRows?.forEach((row: any) => {
+    dailyMap.set(row.id.replace('task:daily:', ''), row.data)
+  })
+
+  const today = new Date()
+  for (let i = -60; i <= 60; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + i)
+    const dateStr = d.toISOString().split('T')[0]
+    const dayIndex = d.getDay() as 0|1|2|3|4|5|6
+
+    const daily = dailyMap.get(dateStr)
+    const completedIds = daily?.completedTaskIds || []
+    const canceledIds = daily?.canceledWeeklyIds || []
+
+    const weeklyProgs = (weekly[dayIndex] || []).filter((p: any) => !canceledIds.includes(p.id))
+    const dailyProgs = daily?.tasks || []
+    
+    const allProgsForDay = [...weeklyProgs, ...dailyProgs]
+    const totalItems = allProgsForDay.length
+    let completedItems = 0
+
+    allProgsForDay.forEach(p => {
+      if (completedIds.includes(p.id)) completedItems++
+    })
 
     if (totalItems > 0 && totalItems === completedItems) {
       completedDates.push(dateStr)

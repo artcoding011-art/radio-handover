@@ -26,6 +26,23 @@ export interface DailyScheduleData {
   completedProgramIds?: string[];
 }
 
+export interface TaskItem {
+  id: string;
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  taskName: string;
+}
+
+export type WeeklyTaskData = {
+  [day in 0 | 1 | 2 | 3 | 4 | 5 | 6]: TaskItem[];
+}
+
+export interface DailyTaskData {
+  tasks: TaskItem[];
+  canceledWeeklyIds?: string[];
+  completedTaskIds?: string[];
+}
+
 export interface HandoverEntry {
   date: string // YYYY-MM-DD
   근무자: string

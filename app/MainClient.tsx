@@ -8,6 +8,8 @@ import ScheduleCalendar from '@/components/ScheduleCalendar'
 import ScheduleManager from '@/components/ScheduleManager'
 import MwWeeklyList from '@/components/MwWeeklyList'
 import MwInspectionForm from '@/components/MwInspectionForm'
+import TaskCalendar from '@/components/TaskCalendar'
+import TaskManager from '@/components/TaskManager'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
@@ -22,7 +24,7 @@ interface MainClientProps {
   userId: string
 }
 
-import { WeeklyScheduleData, DailyScheduleData } from '@/lib/types'
+import { WeeklyScheduleData, DailyScheduleData, WeeklyTaskData, DailyTaskData, TaskItem } from '@/lib/types'
 
 interface SelectedInfo {
   특이사항: string
@@ -83,14 +85,19 @@ export default function MainClient({ userId }: MainClientProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
+  const [weeklyTask, setWeeklyTask] = useState<WeeklyTaskData | null>(null)
+  const [dailyTask, setDailyTask] = useState<DailyTaskData | null>(null)
   const [recordingDates, setRecordingDates] = useState<string[]>([])
   const [completedDates, setCompletedDates] = useState<string[]>([])
+  const [taskDates, setTaskDates] = useState<string[]>([])
+  const [completedTaskDates, setCompletedTaskDates] = useState<string[]>([])
   
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<{ id: string, isDaily: boolean } | null>(null)
   
-  // 새로 추가된 상단 탭 상태 ('업무인계서' | '제작일정' | 'mw')
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw'>('schedule')
+  // 새로 추가된 상단 탭 상태
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task'>('schedule')
 
   // JSZip 로드
   useEffect(() => {
@@ -322,16 +329,66 @@ export default function MainClient({ userId }: MainClientProps) {
     } catch {}
   }, [])
 
+  const fetchTaskDates = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/task/daily/dates?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTaskDates(data.dates || [])
+      }
+    } catch {}
+  }, [])
+
+  const fetchCompletedTaskDates = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/task/daily/completed?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCompletedTaskDates(data.dates || [])
+      }
+    } catch {}
+  }, [])
+
+  const fetchWeeklyTask = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/task?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setWeeklyTask(data.task || null)
+      }
+    } catch {}
+  }, [])
+
+  const fetchDailyTask = useCallback(async (date: Date) => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const res = await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDailyTask(data.task || null)
+      } else {
+        setDailyTask(null)
+      }
+    } catch {
+      setDailyTask(null)
+    }
+  }, [])
+
   useEffect(() => { fetchDates() }, [fetchDates])
   useEffect(() => { 
     fetchWeeklySchedule() 
     fetchRecordingDates()
     fetchCompletedDates()
-  }, [fetchWeeklySchedule, fetchRecordingDates, fetchCompletedDates])
+    fetchWeeklyTask()
+    fetchTaskDates()
+    fetchCompletedTaskDates()
+  }, [fetchWeeklySchedule, fetchRecordingDates, fetchCompletedDates, fetchWeeklyTask, fetchTaskDates, fetchCompletedTaskDates])
   useEffect(() => { 
     fetchDailySchedule(selectedDate)
     fetchCompletedDates()
-  }, [selectedDate, fetchDailySchedule, fetchCompletedDates])
+    fetchDailyTask(selectedDate)
+    fetchCompletedTaskDates()
+  }, [selectedDate, fetchDailySchedule, fetchCompletedDates, fetchDailyTask, fetchCompletedTaskDates])
 
   const requestDeleteTodayProgram = (medium: '1R'|'2R'|'MFM', progId: string, isDaily: boolean) => {
     setDeleteTarget({ medium, id: progId, isDaily })
@@ -447,6 +504,115 @@ export default function MainClient({ userId }: MainClientProps) {
     }
   }
 
+  const requestDeleteTodayTask = (progId: string, isDaily: boolean) => {
+    setDeleteTaskTarget({ id: progId, isDaily })
+  }
+
+  const executeDeleteTodayTask = async () => {
+    if (!deleteTaskTarget) return
+    const { id: progId, isDaily } = deleteTaskTarget
+    setDeleteTaskTarget(null)
+
+    const updated: DailyTaskData = dailyTask 
+      ? JSON.parse(JSON.stringify(dailyTask)) 
+      : { tasks:[], canceledWeeklyIds: [] }
+
+    if (!updated.canceledWeeklyIds) updated.canceledWeeklyIds = []
+
+    if (isDaily) {
+      updated.tasks = (updated.tasks || []).filter((p: any) => p.id !== progId)
+    } else {
+      updated.canceledWeeklyIds.push(progId)
+    }
+
+    setDailyTask(updated)
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      fetchDailyTask(selectedDate)
+      fetchTaskDates()
+    } catch {
+      alert('업무 예외 처리 중 오류가 발생했습니다.')
+      fetchDailyTask(selectedDate)
+    }
+  }
+
+  const handleToggleCompleteTodayTask = async (progId: string) => {
+    const updated: DailyTaskData = dailyTask 
+      ? JSON.parse(JSON.stringify(dailyTask)) 
+      : { tasks:[], canceledWeeklyIds: [], completedTaskIds: [] }
+
+    if (!updated.completedTaskIds) updated.completedTaskIds = []
+
+    const isCompleted = updated.completedTaskIds.includes(progId)
+    if (isCompleted) {
+      updated.completedTaskIds = updated.completedTaskIds.filter(id => id !== progId)
+    } else {
+      updated.completedTaskIds.push(progId)
+    }
+
+    setDailyTask(updated)
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      fetchDailyTask(selectedDate)
+      fetchTaskDates()
+    } catch {
+      alert('상태 업데이트 중 오류가 발생했습니다.')
+      fetchDailyTask(selectedDate)
+    }
+  }
+
+  const handleBulkToggleCompleteTask = async () => {
+    if (!dailyTask || !weeklyTask) return
+    
+    const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+    const wTasks = (weeklyTask[dayIndex] || [])
+      .filter(p => !dailyTask.canceledWeeklyIds?.includes(p.id))
+    const dTasks = dailyTask.tasks || []
+    
+    const allIdsInDay = [...wTasks, ...dTasks].map(p => p.id)
+    if (allIdsInDay.length === 0) return
+
+    const currentCompleted = dailyTask.completedTaskIds || []
+    const allCompletedInDay = allIdsInDay.every(id => currentCompleted.includes(id))
+
+    const updated: DailyTaskData = JSON.parse(JSON.stringify(dailyTask))
+    if (!updated.completedTaskIds) updated.completedTaskIds = []
+
+    if (allCompletedInDay) {
+      updated.completedTaskIds = updated.completedTaskIds.filter(id => !allIdsInDay.includes(id))
+    } else {
+      const otherCompleted = updated.completedTaskIds.filter(id => !allIdsInDay.includes(id))
+      updated.completedTaskIds = [...otherCompleted, ...allIdsInDay]
+    }
+
+    setDailyTask(updated)
+
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd')
+      await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      fetchDailyTask(selectedDate)
+    } catch {
+      alert('일괄 처리 중 오류가 발생했습니다.')
+      fetchDailyTask(selectedDate)
+    }
+  }
+
   useEffect(() => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     fetchSelectedInfo(dateStr)
@@ -478,6 +644,41 @@ export default function MainClient({ userId }: MainClientProps) {
   const hasEntry = entryDates.includes(selectedDateStr)
   const [activeYear, activeMonthNum] = activeMonth.split('-')
   const monthLabel = `${activeYear}년 ${parseInt(activeMonthNum)}월`
+
+  let tasksString = '';
+  if (weeklyTask || dailyTask || dailySchedule) {
+    const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+    const wTasks = weeklyTask?.[dayIndex] || [];
+    const dTasks = dailyTask?.tasks || [];
+    const filteredWTasks = wTasks.filter(p => !dailyTask?.canceledWeeklyIds?.includes(p.id))
+
+    const recordingTasksForString: any[] = [];
+    if (dailySchedule) {
+      (['1R', '2R', 'MFM'] as const).forEach(medium => {
+        (dailySchedule[medium] || []).forEach(prog => {
+          recordingTasksForString.push({
+            id: `rec_${prog.id}`,
+            startTime: prog.startTime,
+            endTime: prog.endTime,
+            taskName: `[${medium}] ${prog.programName} 녹음`,
+            isDaily: true,
+            isRecording: true
+          });
+        });
+      });
+    }
+
+    const mergedForString = [
+      ...filteredWTasks.map(p => ({ ...p, isDaily: false, isRecording: false })),
+      ...dTasks.map(p => ({ ...p, isDaily: true, isRecording: false })),
+      ...recordingTasksForString
+    ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    tasksString = mergedForString.map((t: any) => {
+      const badge = t.isRecording ? '[녹음]' : (t.isDaily ? '[일간]' : '[주간]');
+      return `${badge} ${t.startTime}~${t.endTime} ${t.taskName}`;
+    }).join('\n');
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col relative">
@@ -576,6 +777,12 @@ export default function MainClient({ userId }: MainClientProps) {
               제작일정
             </button>
             <button 
+              onClick={() => setActiveMenu('task')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'task' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              현업주요사항
+            </button>
+            <button 
               onClick={() => setActiveMenu('handover')}
               className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'handover' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
             >
@@ -612,7 +819,7 @@ export default function MainClient({ userId }: MainClientProps) {
         {/* 좌측 (Handover: 800px max, Schedule: 800px max, MW: 200px fixed) */}
         <div className={`
           ${activeMenu === 'mw' ? 'w-full max-w-[200px] flex-shrink-0' 
-            : (activeMenu === 'handover' || activeMenu === 'schedule') ? 'w-full max-w-[800px] flex-shrink-0' 
+            : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'task') ? 'w-full max-w-[800px] flex-shrink-0' 
             : 'flex-1'} overflow-visible
         `}>
           {activeMenu === 'mw' ? (
@@ -627,7 +834,173 @@ export default function MainClient({ userId }: MainClientProps) {
               date={selectedDate} 
               onSaved={handleSaved} 
               onDirtyChange={setIsDirty} 
+              tasksString={tasksString}
             />
+          ) : activeMenu === 'task' ? (
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col h-full overflow-hidden">
+              <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-5 flex items-center justify-between">
+                <div>오늘의 업무일정 <span className="text-sm font-medium text-gray-500 ml-2">{format(selectedDate, 'M월 d일 (eee)', { locale: ko })}</span></div>
+              </h2>
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                {weeklyTask || dailyTask ? (
+                  (() => {
+                    const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+                    const wTasks = weeklyTask?.[dayIndex] || [];
+                    const dTasks = dailyTask?.tasks || [];
+                    
+                    const filteredWTasks = wTasks.filter(p => !dailyTask?.canceledWeeklyIds?.includes(p.id))
+
+                    const recordingTasks: any[] = [];
+                    if (dailySchedule) {
+                      (['1R', '2R', 'MFM'] as const).forEach(medium => {
+                        (dailySchedule[medium] || []).forEach(prog => {
+                          recordingTasks.push({
+                            id: `rec_${prog.id}`,
+                            realId: prog.id,
+                            startTime: prog.startTime,
+                            endTime: prog.endTime,
+                            taskName: `[${medium}] ${prog.programName} 녹음`,
+                            isDaily: true,
+                            isRecording: true
+                          });
+                        });
+                      });
+                    }
+
+                    if (wTasks.length === 0 && dTasks.length === 0 && filteredWTasks.length === 0 && recordingTasks.length === 0) return (
+                      <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                        해당 일자에 등록된 업무가 없습니다.
+                      </div>
+                    );
+                    
+                    const mergedTasks = [
+                      ...filteredWTasks.map(p => ({ ...p, isDaily: false, isRecording: false })),
+                      ...dTasks.map(p => ({ ...p, isDaily: true, isRecording: false })),
+                      ...recordingTasks
+                    ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                    if (mergedTasks.length === 0) return (
+                      <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                        해당 일자에 등록된 업무가 없습니다.
+                      </div>
+                    );
+                    
+                    const isAllCompleted = mergedTasks.length > 0 && mergedTasks.every(p => 
+                      p.isRecording 
+                        ? dailySchedule?.completedProgramIds?.includes(p.realId)
+                        : dailyTask?.completedTaskIds?.includes(p.id)
+                    )
+
+                    return (
+                      <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <h3 className={`font-bold text-gray-700 flex items-center gap-1.5 text-[15px]`}>
+                            <span className={`w-1.5 h-3.5 bg-gray-400 rounded-full`}></span>
+                            전체 업무
+                          </h3>
+                          <button 
+                            onClick={handleBulkToggleCompleteTask}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border ${isAllCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={isAllCompleted}
+                              readOnly
+                              className={`w-3.5 h-3.5 rounded border-gray-300 pointer-events-none ${isAllCompleted ? 'text-white' : 'text-indigo-600'}`}
+                            />
+                            <span className="text-[11px] font-bold">일괄체크</span>
+                          </button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {mergedTasks.map(task => {
+                            const isCompleted = task.isRecording 
+                              ? dailySchedule?.completedProgramIds?.includes(task.realId)
+                              : dailyTask?.completedTaskIds?.includes(task.id)
+
+                            return (
+                            <div key={task.id} 
+                              onClick={() => {
+                                if (task.isRecording) handleToggleCompleteTodayProgram(task.realId);
+                                else handleToggleCompleteTodayTask(task.id);
+                              }}
+                              className={`relative overflow-hidden rounded-lg p-2.5 shadow-sm border flex items-center justify-between transition-all duration-300 cursor-pointer hover:shadow-md
+                              ${task.isRecording
+                                ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500 shadow-emerald-100'
+                                : (task.isDaily 
+                                  ? 'bg-amber-50/60 border-amber-200 border-l-4 border-l-amber-500 shadow-amber-100' 
+                                  : 'bg-white border-indigo-100 border-l-4 border-l-transparent'
+                                )} 
+                              ${isCompleted ? 'opacity-50 bg-gray-50 border-gray-200 grayscale-[0.5]' : ''}`}>
+                              <div className="flex-1 flex items-center gap-3">
+                                <div className={`flex flex-col justify-center transition-all ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className={`text-[13px] font-mono font-bold transition-colors ${isCompleted ? 'text-gray-400' : (task.isRecording ? 'text-emerald-700' : (task.isDaily ? 'text-amber-700' : 'text-indigo-600'))}`}>
+                                      {task.startTime} ~ {task.endTime}
+                                    </span>
+                                    {task.isDaily && !task.isRecording && (
+                                      <span className={`px-1.5 py-0.5 text-[9px] font-black rounded flex items-center gap-1 uppercase tracking-wider transition-colors 
+                                        ${isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-amber-500 text-white shadow-sm'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full bg-red-400 ${isCompleted ? 'bg-gray-400' : 'animate-pulse'}`}></span>
+                                        일간
+                                      </span>
+                                    )}
+                                    {!task.isDaily && !task.isRecording && (
+                                      <span className={`px-1.5 py-0.5 text-[9px] font-black rounded flex items-center gap-1 uppercase tracking-wider transition-colors 
+                                        ${isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-indigo-500 text-white shadow-sm'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full bg-red-400 ${isCompleted ? 'bg-gray-400' : 'animate-pulse'}`}></span>
+                                        주간
+                                      </span>
+                                    )}
+                                    {task.isRecording && (
+                                      <span className={`px-1.5 py-0.5 text-[9px] font-black rounded flex items-center gap-1 uppercase tracking-wider transition-colors 
+                                        ${isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-emerald-500 text-white shadow-sm'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full bg-red-400 ${isCompleted ? 'bg-gray-400' : 'animate-pulse'}`}></span>
+                                        녹음
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`font-bold text-[14px] transition-colors ${isCompleted ? 'text-gray-400' : 'text-gray-800'}`}>
+                                      {task.taskName}
+                                    </span>
+                                    {!isCompleted && (
+                                      <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-blue-100 text-blue-600 flex items-center gap-1 uppercase tracking-wider">
+                                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                        진행중
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); requestDeleteTodayTask(task.id, task.isDaily); }}
+                                title={task.isDaily ? '이 일간 업무 삭제' : '이 주간 업무를 오늘만 숨김(예외) 처리'}
+                                className={`w-7 h-7 ml-2 flex items-center justify-center rounded-md transition-colors flex-shrink-0 relative z-10 ${task.isDaily ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                              
+                              {isCompleted && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none select-none z-0">
+                                  <div className="border-[3px] border-amber-500 text-amber-500 font-black text-xl px-3 py-0.5 rounded opacity-40 tracking-widest shadow-sm">
+                                    업무완료
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                        </div>
+                      </div>
+                    )
+                  })()
+                ) : (
+                  <div className="text-center py-10 text-gray-400 text-sm">등록된 업무가 없습니다. 우측 메뉴에서 업무를 추가해주세요.</div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col h-full overflow-hidden">
               <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-5 flex items-center justify-between">
@@ -764,6 +1137,15 @@ export default function MainClient({ userId }: MainClientProps) {
               date={selectedDate} 
               onSaveSuccess={() => setMwRefreshKey(prev => prev + 1)}
             />
+          ) : activeMenu === 'task' ? (
+            <TaskCalendar
+              selectedDate={selectedDate}
+              onDateChange={handleDateChangeRequest}
+              onMonthChange={handleMonthChange}
+              taskDates={taskDates}
+              completedDates={completedTaskDates}
+              recordingDates={recordingDates}
+            />
           ) : activeMenu === 'handover' ? (
             <CalendarView
               selectedDate={selectedDate}
@@ -871,6 +1253,24 @@ export default function MainClient({ userId }: MainClientProps) {
               onOptimisticSync={(w, d) => {
                 if (w) setWeeklySchedule(w)
                 if (d) setDailySchedule(d)
+              }}
+            />
+          ) : activeMenu === 'task' ? (
+            <TaskManager 
+              selectedDate={selectedDate} 
+              initialWeeklyTask={weeklyTask} 
+              initialDailyTask={dailyTask}
+              initialDailySchedule={dailySchedule}
+              onToggleRecordingTask={handleToggleCompleteTodayProgram}
+              onUpdated={() => { 
+                fetchWeeklyTask(); 
+                fetchDailyTask(selectedDate);
+                fetchTaskDates();
+                fetchCompletedTaskDates();
+              }} 
+              onOptimisticSync={(w, d) => {
+                if (w) setWeeklyTask(w)
+                if (d) setDailyTask(d)
               }}
             />
           ) : null}
