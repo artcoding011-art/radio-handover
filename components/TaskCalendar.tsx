@@ -13,7 +13,6 @@ interface TaskCalendarProps {
   taskDates?: string[]
   completedDates?: string[]
   recordingDates?: string[]
-  recordingDates?: string[]
 }
 
 export default function TaskCalendar({ 
