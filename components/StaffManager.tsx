@@ -136,6 +136,7 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
                     </div>
                   </div>
                   <button 
+                    type="button"
                     onClick={() => handleRemoveDailyAssignment(a.id)}
                     className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
                     title="일정 삭제"
@@ -178,6 +179,7 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
             className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-gray-400"
           />
           <button 
+            type="button"
             onClick={handleAddNewStaff}
             className="bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
           >

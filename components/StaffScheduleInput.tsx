@@ -21,6 +21,7 @@ export default function StaffScheduleInput({
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
   const [selectedShift, setSelectedShift] = useState<WorkShift>('종일(09:00~18:00)')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   const handleAddSingle = async () => {
     if (!selectedStaffId) {
@@ -38,18 +39,19 @@ export default function StaffScheduleInput({
     }
   }
 
-  const handleBulkAdd = async () => {
+  const handleBulkAddClick = () => {
     if (!selectedStaffId) {
       alert('직원을 선택해주세요.')
       return
     }
+    setShowConfirmModal(true)
+  }
+
+  const executeBulkAdd = async () => {
     const staff = globalStaff.find(s => s.id === selectedStaffId)
     if (!staff) return
 
-    if (!confirm(`${format(selectedDate, 'M월')} 전체 평일(월~금)에 [${staff.name}] 직원을 [${selectedShift}]로 일괄 배정하시겠습니까?`)) {
-      return
-    }
-
+    setShowConfirmModal(false)
     setIsProcessing(true)
     try {
       await onBulkAddWeekdays(staff, selectedShift)
@@ -114,6 +116,7 @@ export default function StaffScheduleInput({
         {/* 동작 버튼 */}
         <div className="w-full sm:w-1/3 flex gap-2">
           <button
+            type="button"
             onClick={handleAddSingle}
             disabled={isProcessing || !selectedStaffId}
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2.5 rounded-lg font-bold shadow-sm transition-all text-sm whitespace-nowrap"
@@ -122,7 +125,8 @@ export default function StaffScheduleInput({
           </button>
           
           <button
-            onClick={handleBulkAdd}
+            type="button"
+            onClick={handleBulkAddClick}
             disabled={isProcessing || !selectedStaffId}
             className="flex-1 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white px-4 py-2.5 rounded-lg font-bold shadow-sm transition-all text-sm flex flex-col items-center justify-center leading-tight whitespace-nowrap relative group"
           >
@@ -132,6 +136,39 @@ export default function StaffScheduleInput({
         </div>
 
       </div>
+
+      {/* 일괄 입력 확인 커스텀 모달 */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center w-80 transform transition-all animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-4">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">월간 일괄 배정</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center leading-relaxed">
+              <span className="font-bold text-blue-600">{format(selectedDate, 'M월')}</span> 전체 평일(월~금)에<br/>
+              <span className="font-bold text-gray-800">{globalStaff.find(s => s.id === selectedStaffId)?.name}</span> 직원을 <span className="font-bold text-gray-800">{selectedShift}</span>로<br/>
+              일괄 배정하시겠습니까?
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-bold transition-colors text-sm"
+              >
+                취소
+              </button>
+              <button 
+                type="button"
+                onClick={executeBulkAdd}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-bold transition-colors text-sm shadow-sm"
+              >
+                일괄 배정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
