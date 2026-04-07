@@ -122,6 +122,12 @@ export default function MainClient({ userId }: MainClientProps) {
   const [staffDates, setStaffDates] = useState<string[]>([])
   const [staffColorsMap, setStaffColorsMap] = useState<Record<string, string[]>>({})
 
+  // M/W 점검 전용 날짜 상태
+  const [mwSelectedDate, setMwSelectedDate] = useState(() => {
+    const today = new Date()
+    return addDays(today, 3 - today.getDay())
+  })
+
   // Custom Delete Modal State
   const [deleteTarget, setDeleteTarget] = useState<{ medium: '1R'|'2R'|'MFM', id: string, isDaily: boolean } | null>(null)
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<{ id: string, isDaily: boolean } | null>(null)
@@ -862,12 +868,7 @@ export default function MainClient({ userId }: MainClientProps) {
               업무인계서
             </button>
             <button 
-              onClick={() => {
-                const today = new Date()
-                const wednesday = addDays(today, 3 - today.getDay())
-                handleDateChangeRequest(wednesday)
-                setActiveMenu('mw')
-              }}
+              onClick={() => setActiveMenu('mw')}
               className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
             >
               M/W 점검
@@ -903,8 +904,8 @@ export default function MainClient({ userId }: MainClientProps) {
         `}>
           {activeMenu === 'mw' ? (
             <MwWeeklyList 
-              selectedDate={selectedDate}
-              onDateChange={handleDateChangeRequest}
+              selectedDate={mwSelectedDate}
+              onDateChange={setMwSelectedDate}
               refreshKey={mwRefreshKey}
             />
           ) : activeMenu === 'handover' ? (
@@ -1281,7 +1282,7 @@ export default function MainClient({ userId }: MainClientProps) {
           {/* 캘린더 대체 및 실제 캘린더 */}
           {activeMenu === 'mw' ? (
             <MwInspectionForm 
-              date={selectedDate} 
+              date={mwSelectedDate} 
               onSaveSuccess={() => setMwRefreshKey(prev => prev + 1)}
             />
           ) : activeMenu === 'task' ? (
