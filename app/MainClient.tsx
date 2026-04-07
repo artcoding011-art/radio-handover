@@ -68,6 +68,28 @@ const getMediumColor = (medium: '1R' | '2R' | 'MFM') => {
   }
 }
 
+const timeToNumber = (t: string) => {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h + (m || 0) / 60;
+}
+
+const getOverlappingStaff = (startTime: string, endTime: string, assignments: any[] | undefined) => {
+  if (!assignments || assignments.length === 0) return [];
+  const sStart = timeToNumber(startTime || '00:00');
+  let sEnd = timeToNumber(endTime || '23:59');
+  if (sEnd <= sStart) sEnd += 24; // 자정 넘기는 스케줄 처리
+
+  return assignments.filter((a: any) => {
+    let aStart = 9, aEnd = 18; // default: 종일
+    if (a.shift === '오전(09:00~14:00)') { aStart = 9; aEnd = 14; }
+    else if (a.shift === '오후(14:00~18:00)') { aStart = 14; aEnd = 18; }
+    
+    // 단순 시간이 겹치는지 체크
+    return Math.max(sStart, aStart) < Math.min(sEnd, aEnd);
+  });
+}
+
 export default function MainClient({ userId }: MainClientProps) {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -1039,16 +1061,38 @@ export default function MainClient({ userId }: MainClientProps) {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`font-bold text-[14px] transition-colors ${isCompleted ? 'text-gray-400' : 'text-gray-800'}`}>
-                                      {task.taskName}
-                                    </span>
-                                    {!isCompleted && (
-                                      <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-blue-100 text-blue-600 flex items-center gap-1 uppercase tracking-wider">
-                                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
-                                        진행중
+                                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 transition-all">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-bold text-[14px] transition-colors ${isCompleted ? 'text-gray-400' : 'text-gray-800'}`}>
+                                        {task.taskName}
                                       </span>
-                                    )}
+                                      {!isCompleted && (
+                                        <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-blue-100 text-blue-600 flex items-center gap-1 uppercase tracking-wider">
+                                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                          진행중
+                                        </span>
+                                      )}
+                                    </div>
+                                    {(() => {
+                                      const staffs = getOverlappingStaff(task.startTime, task.endTime, dailyStaff?.assignments);
+                                      if (staffs.length === 0) return null;
+                                      return (
+                                        <div className="flex items-center gap-1.5 pl-0 sm:pl-1 border-l-0 sm:border-l sm:border-gray-200">
+                                          {staffs.map((s: any) => (
+                                            <span key={s.id} className={`px-2 py-[3px] text-[11px] font-extrabold rounded-md text-white shadow-sm flex items-center gap-1 ${s.color} ${isCompleted ? 'opacity-60' : 'opacity-100'}`}>
+                                              <span className="opacity-90">
+                                                {s.role === '주 근무자' ? (
+                                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                                                ) : (
+                                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+                                                )}
+                                              </span>
+                                              {s.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
                                 </div>
                               </div>
@@ -1153,16 +1197,38 @@ export default function MainClient({ userId }: MainClientProps) {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`font-bold text-[14px] transition-colors ${isCompleted ? 'text-gray-400' : 'text-gray-800'}`}>
-                                      {prog.programName}
-                                    </span>
-                                    {!isCompleted && (
-                                      <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-blue-100 text-blue-600 flex items-center gap-1 uppercase tracking-wider">
-                                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
-                                        제작중
+                                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 transition-all">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-bold text-[14px] transition-colors ${isCompleted ? 'text-gray-400' : 'text-gray-800'}`}>
+                                        {prog.programName}
                                       </span>
-                                    )}
+                                      {!isCompleted && (
+                                        <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-blue-100 text-blue-600 flex items-center gap-1 uppercase tracking-wider">
+                                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                          제작중
+                                        </span>
+                                      )}
+                                    </div>
+                                    {(() => {
+                                      const staffs = getOverlappingStaff(prog.startTime, prog.endTime, dailyStaff?.assignments);
+                                      if (staffs.length === 0) return null;
+                                      return (
+                                        <div className="flex items-center gap-1.5 pl-0 sm:pl-1 border-l-0 sm:border-l sm:border-gray-200">
+                                          {staffs.map((s: any) => (
+                                            <span key={s.id} className={`px-2 py-[3px] text-[11px] font-extrabold rounded-md text-white shadow-sm flex items-center gap-1 ${s.color} ${isCompleted ? 'opacity-60' : 'opacity-100'}`}>
+                                              <span className="opacity-90">
+                                                {s.role === '주 근무자' ? (
+                                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                                                ) : (
+                                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+                                                )}
+                                              </span>
+                                              {s.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
                                 </div>
                               </div>

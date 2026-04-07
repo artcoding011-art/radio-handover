@@ -34,6 +34,8 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
   const [newRole, setNewRole] = useState<StaffRole>('부 근무자')
   const [newName, setNewName] = useState('')
   const [isSavingRoster, setIsSavingRoster] = useState(false)
+  const [deleteDailyTarget, setDeleteDailyTarget] = useState<string | null>(null)
+  const [deleteGlobalTarget, setDeleteGlobalTarget] = useState<string | null>(null)
 
   useEffect(() => {
     setRoster(globalStaff)
@@ -137,7 +139,7 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
                   </div>
                   <button 
                     type="button"
-                    onClick={() => handleRemoveDailyAssignment(a.id)}
+                    onClick={() => setDeleteDailyTarget(a.id)}
                     className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
                     title="일정 삭제"
                   >
@@ -220,8 +222,10 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
                   </div>
 
                   <button 
-                    onClick={() => handleRemoveStaff(s.id)}
+                    type="button"
+                    onClick={() => setDeleteGlobalTarget(s.id)}
                     className="ml-1 text-gray-300 hover:text-red-500 p-0.5 rounded-full hover:bg-red-50 transition-colors"
+                    title="명부에서 삭제"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
@@ -232,6 +236,40 @@ export default function StaffManager({ date, dailyStaff, globalStaff, onSaveDail
         </div>
 
       </div>
+
+      {/* 일간 배정 삭제 모달 */}
+      {deleteDailyTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center w-80 transform transition-all animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-4">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">근무자 배정 취소</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center">오늘 일자 배정 목록에서<br/>해당 근무자를 삭제하시겠습니까?</p>
+            <div className="flex gap-3 w-full">
+              <button type="button" onClick={() => setDeleteDailyTarget(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-bold transition-colors text-sm">취소</button>
+              <button type="button" onClick={() => { handleRemoveDailyAssignment(deleteDailyTarget); setDeleteDailyTarget(null); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-bold transition-colors text-sm shadow-sm">삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전체 직원 삭제 모달 */}
+      {deleteGlobalTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center w-80 transform transition-all animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-4">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">직원 명부 삭제</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center">전체 명부에서 직원을 삭제하시겠습니까?<br/>(과거 배정 기록은 유지됩니다)</p>
+            <div className="flex gap-3 w-full">
+              <button type="button" onClick={() => setDeleteGlobalTarget(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-bold transition-colors text-sm">취소</button>
+              <button type="button" onClick={() => { handleRemoveStaff(deleteGlobalTarget); setDeleteGlobalTarget(null); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-bold transition-colors text-sm shadow-sm">삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
