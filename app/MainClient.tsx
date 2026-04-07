@@ -16,6 +16,7 @@ import StaffScheduleInput from '@/components/StaffScheduleInput'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
+import { WeeklyScheduleData, DailyScheduleData, WeeklyTaskData, DailyTaskData, DailyStaffData, GlobalStaff } from '@/lib/types'
 
 declare global {
   interface Window {

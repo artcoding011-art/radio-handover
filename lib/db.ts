@@ -590,8 +590,12 @@ function loadLocalData(): Record<string, any> {
         console.error('Raw data causing error:', data.slice(0, 100) + '...')
         // If it's corrupted, try to move it to a backup and start fresh to avoid infinite crash loop
         const backupPath = `${LOCAL_DB_PATH}.bak.${Date.now()}`
-        fs.renameSync(LOCAL_DB_PATH, backupPath)
-        console.warn(`Corrupted local_db.json moved to ${backupPath}`)
+        try {
+          fs.renameSync(LOCAL_DB_PATH, backupPath)
+          console.warn(`Corrupted local_db.json moved to ${backupPath}`)
+        } catch (e) {
+          console.warn(`Could not rename corrupted local_db.json (might be serverless environment):`, e)
+        }
         return {}
       }
     }
@@ -609,12 +613,20 @@ const memoryStore = {
   set: async (key: string, value: any) => { 
     const db = loadLocalData()
     db[key] = value
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+    try {
+      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+    } catch (e) {
+      console.warn('Could not write to local DB (might be in serverless environment):', e)
+    }
   },
   del: async (key: string) => { 
     const db = loadLocalData()
     delete db[key]
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+    try {
+      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+    } catch (e) {
+      console.warn('Could not delete from local DB (might be in serverless environment):', e)
+    }
   },
   smembers: async (key: string) => {
     const db = loadLocalData()
