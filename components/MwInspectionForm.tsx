@@ -205,15 +205,24 @@ interface MwInputProps {
   className?: string
   isOperating?: boolean
   placeholder?: string
+  isExporting?: boolean
 }
 
-function MwInput({ value, onChange, className, isOperating, placeholder }: MwInputProps) {
+function MwInput({ value, onChange, className, isOperating, placeholder, isExporting }: MwInputProps) {
   const [localValue, setLocalValue] = useState(value)
 
   // Update local value if parent value changes (e.g. from a different source or reset)
   useEffect(() => {
     setLocalValue(value)
   }, [value])
+
+  if (isExporting) {
+    return (
+      <div className={`${className} flex items-center justify-center min-h-[40px] leading-relaxed`}>
+        {value || placeholder}
+      </div>
+    )
+  }
 
   return (
     <input 
@@ -244,9 +253,10 @@ interface DataRowComponentProps {
   data: MwInspectionData
   setData: React.Dispatch<React.SetStateAction<MwInspectionData>>
   updateRow: (rowKey: any, field: any, value: any) => void
+  isExporting?: boolean
 }
 
-const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData, updateRow }: DataRowComponentProps) => {
+const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData, updateRow, isExporting }: DataRowComponentProps) => {
   const rowData = data[rowKey] as MwDataRow
   const isOperating = rowData.isOperating
 
@@ -286,6 +296,7 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
           <MwInput 
             value={rowData[field] as string} 
             onChange={(val) => updateRow(rowKey, field, val)}
+            isExporting={isExporting}
             className={`w-full text-center py-3 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400 text-[15px] transition-all
               ${isOperating ? 'font-black text-blue-900 drop-shadow-sm' : 'font-medium text-gray-800'}`}
           />
@@ -391,6 +402,7 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
                   value={data.time} 
                   onChange={val => updateHeader('time', val)} 
                   placeholder="09:00"
+                  isExporting={isExporting}
                 />
                 <span className="text-gray-400 font-bold ml-1">)</span>
               </div>
@@ -399,17 +411,17 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-gray-500 font-bold text-[14px]">온도:</span>
-                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.temperature} onChange={val => updateHeader('temperature', val)} />
+                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.temperature} onChange={val => updateHeader('temperature', val)} isExporting={isExporting} />
                 <span className="text-gray-500 font-bold ml-1">℃</span>
               </div>
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-gray-500 font-bold text-[14px]">습도:</span>
-                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.humidity} onChange={val => updateHeader('humidity', val)} />
+                <MwInput className="w-[50px] bg-transparent focus:outline-none text-right font-bold text-gray-800" value={data.humidity} onChange={val => updateHeader('humidity', val)} isExporting={isExporting} />
                 <span className="text-gray-500 font-bold ml-1">%</span>
               </div>
               <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
                 <span className="text-blue-700 font-extrabold text-[14px]">점검자 :</span>
-                <MwInput className="w-[90px] bg-transparent focus:outline-none font-bold text-blue-900 border-b border-blue-200" value={data.inspector} onChange={val => updateHeader('inspector', val)} placeholder="이름 입력" />
+                <MwInput className="w-[90px] bg-transparent focus:outline-none font-bold text-blue-900 border-b border-blue-200" value={data.inspector} onChange={val => updateHeader('inspector', val)} placeholder="이름 입력" isExporting={isExporting} />
               </div>
             </div>
           </div>
@@ -451,12 +463,12 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
                 </tr>
               </thead>
               <tbody>
-                <DataRowComponent mediumLabel="1R" rowLabel="TX-1 (주)" rowKey="1R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="1R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
-                <DataRowComponent mediumLabel="2R" rowLabel="TX-1 (주)" rowKey="2R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="2R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
-                <DataRowComponent mediumLabel="MFM" rowLabel="TX-1 (주)" rowKey="MFM_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} />
-                <DataRowComponent rowLabel="TX-2 (예)" rowKey="MFM_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} />
+                <DataRowComponent mediumLabel="1R" rowLabel="TX-1 (주)" rowKey="1R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="1R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
+                <DataRowComponent mediumLabel="2R" rowLabel="TX-1 (주)" rowKey="2R_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="2R_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
+                <DataRowComponent mediumLabel="MFM" rowLabel="TX-1 (주)" rowKey="MFM_TX1" isEven={false} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
+                <DataRowComponent rowLabel="TX-2 (예)" rowKey="MFM_TX2" isEven={true} data={data} setData={setData} updateRow={updateRow} isExporting={isExporting} />
               </tbody>
             </table>
           </div>
