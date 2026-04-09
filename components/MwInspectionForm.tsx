@@ -160,7 +160,9 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
         scale: 2, 
         backgroundColor: '#ffffff',
         useCORS: true,
-        logging: false
+        logging: false,
+        width: el.scrollWidth,
+        windowWidth: el.scrollWidth
       })
       
       const imgData = canvas.toDataURL('image/jpeg', 0.95)
@@ -218,8 +220,8 @@ function MwInput({ value, onChange, className, isOperating, placeholder, isExpor
 
   if (isExporting) {
     return (
-      <div className={`${className} flex items-center justify-center min-h-[40px] leading-relaxed`}>
-        {value || placeholder}
+      <div className={`${className} flex items-center justify-center py-3 leading-tight`}>
+        {value || (placeholder && <span className="text-gray-200">{placeholder}</span>)}
       </div>
     )
   }
