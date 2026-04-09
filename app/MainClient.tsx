@@ -93,12 +93,31 @@ const getOverlappingStaff = (startTime: string, endTime: string, assignments: an
 
 export default function MainClient({ userId }: MainClientProps) {
   const router = useRouter()
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(() => {
+    // 자정 새로고침 시 URL에 ?date= 파라미터가 있으면 해당 날짜로 초기화
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const dateParam = params.get('date')
+      if (dateParam) {
+        const parsed = new Date(dateParam + 'T00:00:00')
+        if (!isNaN(parsed.getTime())) return parsed
+      }
+    }
+    return new Date()
+  })
   const [entryDates, setEntryDates] = useState<string[]>([])
   const [mwRefreshKey, setMwRefreshKey] = useState(0)
   const [selectedInfo, setSelectedInfo] = useState<SelectedInfo | null>(null)
   const [monthlyEntries, setMonthlyEntries] = useState<MonthlyEntry[]>([])
-  const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'))
+  const [activeMonth, setActiveMonth] = useState(() => {
+    // 자정 새로고침 시 URL ?date= 파라미터 기반으로 월 초기화
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const dateParam = params.get('date')
+      if (dateParam && dateParam.length >= 7) return dateParam.substring(0, 7)
+    }
+    return format(new Date(), 'yyyy-MM')
+  })
   const [loggingOut, setLoggingOut] = useState(false)
 
   const formRef = useRef<HandoverFormRef>(null)
@@ -106,7 +125,18 @@ export default function MainClient({ userId }: MainClientProps) {
   const [pendingDate, setPendingDate] = useState<Date | null>(null)
   const [isDownloadingZip, setIsDownloadingZip] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    // 자정 새로고침 시 URL ?date= 파라미터 기반으로 월 초기화
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const dateParam = params.get('date')
+      if (dateParam) {
+        const parsed = new Date(dateParam + 'T00:00:00')
+        if (!isNaN(parsed.getTime())) return parsed
+      }
+    }
+    return new Date()
+  })
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
   const [weeklyTask, setWeeklyTask] = useState<WeeklyTaskData | null>(null)
@@ -135,6 +165,9 @@ export default function MainClient({ userId }: MainClientProps) {
   // 새로 추가된 상단 탭 상태
   const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task' | 'staff'>('schedule')
 
+  // ── DB 변경 감지 폴링: 마지막으로 확인한 타임스탬프 ──
+  const lastKnownDbTimestamp = useRef<string>('')
+
   // JSZip 로드
   useEffect(() => {
     const script = document.createElement('script')
@@ -143,6 +176,92 @@ export default function MainClient({ userId }: MainClientProps) {
     document.head.appendChild(script)
     return () => {
       document.head.removeChild(script)
+    }
+  }, [])
+
+  // ── DB 변경 감지 폴링 (1분 간격) ──
+  // /api/db-status를 1분마다 확인하여 updated_at이 달라지면 전체 새로고침합니다.
+  useEffect(() => {
+    let initialized = false
+
+    const checkDbStatus = async () => {
+      try {
+        const res = await fetch(`/api/db-status?_t=${Date.now()}`)
+        if (!res.ok) return
+        const { latestUpdatedAt } = await res.json()
+        if (!latestUpdatedAt) return
+
+        if (!initialized) {
+          // 첫 폴링 시 현재 타임스탬프를 기준값으로 저장 (새로고침 안 함)
+          lastKnownDbTimestamp.current = latestUpdatedAt
+          initialized = true
+          return
+        }
+
+        if (latestUpdatedAt !== lastKnownDbTimestamp.current) {
+          console.log('[DB Poll] 변경 감지:', lastKnownDbTimestamp.current, '→', latestUpdatedAt)
+          lastKnownDbTimestamp.current = latestUpdatedAt
+          window.location.reload()
+        }
+      } catch (err) {
+        console.warn('[DB Poll] 상태 확인 실패:', err)
+      }
+    }
+
+    // 즉시 1회 실행 후 1분마다 반복
+    checkDbStatus()
+    const intervalId = setInterval(checkDbStatus, 60_000)
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // ── 자정 날짜 자동 전환 ──
+  // 자정 이후 00:01, 00:02 시점에 오늘 날짜로 전환하며 전체 새로고침합니다.
+  useEffect(() => {
+    let timeout1: ReturnType<typeof setTimeout>
+    let timeout2: ReturnType<typeof setTimeout>
+    let midnightTimeout: ReturnType<typeof setTimeout>
+
+    const scheduleMidnightRefresh = () => {
+      const now = new Date()
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
+
+      const msUntilMidnight = tomorrow.getTime() - now.getTime()
+      console.log(`[Midnight] 다음 자정까지 ${Math.floor(msUntilMidnight / 1000 / 60)}분 남음`)
+
+      midnightTimeout = setTimeout(() => {
+        // 자정 +1분: 날짜를 쿼리 파라미터에 담아 새로고침
+        timeout1 = setTimeout(() => {
+          const today = new Date()
+          const todayStr = format(today, 'yyyy-MM-dd')
+          console.log('[Midnight] 00:01 - 날짜 전환 새로고침:', todayStr)
+          // URL에 날짜를 담아 reload (페이지 로드 시 selectedDate 초기화용)
+          const url = new URL(window.location.href)
+          url.searchParams.set('date', todayStr)
+          window.location.href = url.toString()
+        }, 60_000) // 자정 후 1분
+
+        // 자정 +2분: 한 번 더 새로고침으로 재확인
+        timeout2 = setTimeout(() => {
+          console.log('[Midnight] 00:02 - 재확인 새로고침')
+          const url = new URL(window.location.href)
+          // 이미 date가 붙어있으면 그대로 reload
+          window.location.reload()
+        }, 120_000) // 자정 후 2분
+
+        // 다음 자정 예약
+        scheduleMidnightRefresh()
+      }, msUntilMidnight)
+    }
+
+    scheduleMidnightRefresh()
+
+    return () => {
+      clearTimeout(midnightTimeout)
+      clearTimeout(timeout1)
+      clearTimeout(timeout2)
     }
   }, [])
 
