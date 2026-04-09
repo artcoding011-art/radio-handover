@@ -26,6 +26,7 @@ declare global {
 
 interface MainClientProps {
   userId: string
+  isReadonly?: boolean
 }
 
 interface SelectedInfo {
@@ -91,7 +92,7 @@ const getOverlappingStaff = (startTime: string, endTime: string, assignments: an
   });
 }
 
-export default function MainClient({ userId }: MainClientProps) {
+export default function MainClient({ userId, isReadonly = false }: MainClientProps) {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(() => {
     // 자정 새로고침 시 URL에 ?date= 파라미터가 있으면 해당 날짜로 초기화
@@ -980,34 +981,44 @@ export default function MainClient({ userId }: MainClientProps) {
             >
               현업주요사항
             </button>
-            <button 
-              onClick={() => setActiveMenu('handover')}
-              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'handover' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
-            >
-              업무인계서
-            </button>
-            <button 
-              onClick={() => setActiveMenu('mw')}
-              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
-            >
-              M/W 점검
-            </button>
-            <button 
-              onClick={() => setActiveMenu('staff')}
-              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'staff' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
-            >
-              근무자
-            </button>
+            {!isReadonly && (
+              <button 
+                onClick={() => setActiveMenu('handover')}
+                className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'handover' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+              >
+                업무인계서
+              </button>
+            )}
+            {!isReadonly && (
+              <button 
+                onClick={() => setActiveMenu('mw')}
+                className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'mw' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+              >
+                M/W 점검
+              </button>
+            )}
+            {!isReadonly && (
+              <button 
+                onClick={() => setActiveMenu('staff')}
+                className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'staff' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+              >
+                근무자
+              </button>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-blue-200 text-base">
+          <span className="text-blue-200 text-base flex items-center gap-2">
             <span className="text-blue-400 text-sm mr-1">로그인:</span>{userId}
+            {isReadonly && (
+              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full">읽기전용</span>
+            )}
           </span>
           <button onClick={handleLogout} disabled={loggingOut}
             className="text-base bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition disabled:opacity-50">
             {loggingOut ? '로그아웃 중...' : '로그아웃'}
           </button>
+
         </div>
       </header>
 
@@ -1121,18 +1132,20 @@ export default function MainClient({ userId }: MainClientProps) {
                             <span className={`w-1.5 h-3.5 bg-gray-400 rounded-full`}></span>
                             전체 업무
                           </h3>
-                          <button 
-                            onClick={handleBulkToggleCompleteTask}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border ${isAllCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
-                          >
-                            <input 
-                              type="checkbox" 
-                              checked={isAllCompleted}
-                              readOnly
-                              className={`w-3.5 h-3.5 rounded border-gray-300 pointer-events-none ${isAllCompleted ? 'text-white' : 'text-indigo-600'}`}
-                            />
-                            <span className="text-[11px] font-bold">일괄체크</span>
-                          </button>
+                          {!isReadonly && (
+                            <button 
+                              onClick={handleBulkToggleCompleteTask}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border ${isAllCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                            >
+                              <input 
+                                type="checkbox" 
+                                checked={isAllCompleted}
+                                readOnly
+                                className={`w-3.5 h-3.5 rounded border-gray-300 pointer-events-none ${isAllCompleted ? 'text-white' : 'text-indigo-600'}`}
+                              />
+                              <span className="text-[11px] font-bold">일괄체크</span>
+                            </button>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           {mergedTasks.map(task => {
@@ -1143,10 +1156,11 @@ export default function MainClient({ userId }: MainClientProps) {
                             return (
                             <div key={task.id} 
                               onClick={() => {
+                                if (isReadonly) return;
                                 if (task.isRecording) handleToggleCompleteTodayProgram(task.realId);
                                 else handleToggleCompleteTodayTask(task.id);
                               }}
-                              className={`relative overflow-hidden rounded-lg p-2.5 shadow-sm border flex items-center justify-between transition-all duration-300 cursor-pointer hover:shadow-md
+                              className={`relative overflow-hidden rounded-lg p-2.5 shadow-sm border flex items-center justify-between transition-all duration-300 ${isReadonly ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}
                               ${task.isRecording
                                 ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500 shadow-emerald-100'
                                 : (task.isDaily 
@@ -1217,15 +1231,17 @@ export default function MainClient({ userId }: MainClientProps) {
                                   </div>
                                 </div>
                               </div>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); requestDeleteTodayTask(task.id, task.isDaily); }}
-                                title={task.isDaily ? '이 일간 업무 삭제' : '이 주간 업무를 오늘만 숨김(예외) 처리'}
-                                className={`w-7 h-7 ml-2 flex items-center justify-center rounded-md transition-colors flex-shrink-0 relative z-10 ${task.isDaily ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
+                              {!isReadonly && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); requestDeleteTodayTask(task.id, task.isDaily); }}
+                                  title={task.isDaily ? '이 일간 업무 삭제' : '이 주간 업무를 오늘만 숨김(예외) 처리'}
+                                  className={`w-7 h-7 ml-2 flex items-center justify-center rounded-md transition-colors flex-shrink-0 relative z-10 ${task.isDaily ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
                               
                               {isCompleted && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none select-none z-0">
@@ -1280,26 +1296,28 @@ export default function MainClient({ userId }: MainClientProps) {
                             <span className={`w-1.5 h-3.5 ${colors.bgMarker} rounded-full`}></span>
                             {medium}
                           </h3>
-                          <button 
-                            onClick={() => handleBulkToggleComplete(medium)}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border ${isAllCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
-                          >
-                            <input 
-                              type="checkbox" 
-                              checked={isAllCompleted}
-                              readOnly
-                              className={`w-3.5 h-3.5 rounded border-gray-300 pointer-events-none ${isAllCompleted ? 'text-white' : 'text-indigo-600'}`}
-                            />
-                            <span className="text-[11px] font-bold">일괄체크</span>
-                          </button>
+                          {!isReadonly && (
+                            <button 
+                              onClick={() => handleBulkToggleComplete(medium)}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border ${isAllCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                            >
+                              <input 
+                                type="checkbox" 
+                                checked={isAllCompleted}
+                                readOnly
+                                className={`w-3.5 h-3.5 rounded border-gray-300 pointer-events-none ${isAllCompleted ? 'text-white' : 'text-indigo-600'}`}
+                              />
+                              <span className="text-[11px] font-bold">일괄체크</span>
+                            </button>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           {mergedPrograms.map(prog => {
                             const isCompleted = dailySchedule?.completedProgramIds?.includes(prog.id)
                             return (
                             <div key={prog.id} 
-                              onClick={() => handleToggleCompleteTodayProgram(prog.id)}
-                              className={`relative overflow-hidden rounded-lg p-2.5 shadow-sm border flex items-center justify-between transition-all duration-300 cursor-pointer hover:shadow-md
+                              onClick={() => { if (!isReadonly) handleToggleCompleteTodayProgram(prog.id) }}
+                              className={`relative overflow-hidden rounded-lg p-2.5 shadow-sm border flex items-center justify-between transition-all duration-300 ${isReadonly ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}
                               ${prog.isDaily 
                                 ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500 shadow-emerald-100' 
                                 : `bg-white ${colors.borderLight} border-l-4 border-l-transparent`} 
@@ -1353,15 +1371,17 @@ export default function MainClient({ userId }: MainClientProps) {
                                   </div>
                                 </div>
                               </div>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); requestDeleteTodayProgram(medium, prog.id, prog.isDaily); }}
-                                title={prog.isDaily ? '이 녹음 스케줄 삭제' : '이 요일의 주간 스케줄 결방(예외) 처리'}
-                                className={`w-7 h-7 ml-2 flex items-center justify-center rounded-md transition-colors flex-shrink-0 relative z-10 ${prog.isDaily ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
+                              {!isReadonly && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); requestDeleteTodayProgram(medium, prog.id, prog.isDaily); }}
+                                  title={prog.isDaily ? '이 녹음 스케줄 삭제' : '이 요일의 주간 스케줄 결방(예외) 처리'}
+                                  className={`w-7 h-7 ml-2 flex items-center justify-center rounded-md transition-colors flex-shrink-0 relative z-10 ${prog.isDaily ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
                               
                               {isCompleted && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none select-none z-0">
@@ -1586,39 +1606,43 @@ export default function MainClient({ userId }: MainClientProps) {
               </div>
             </>
           ) : activeMenu === 'schedule' ? (
-            <ScheduleManager 
-              selectedDate={selectedDate} 
-              initialWeeklySchedule={weeklySchedule} 
-              initialDailySchedule={dailySchedule}
-              onUpdated={() => { 
-                fetchWeeklySchedule(); 
-                fetchDailySchedule(selectedDate);
-                fetchRecordingDates();
-                fetchCompletedDates();
-              }} 
-              onOptimisticSync={(w, d) => {
-                if (w) setWeeklySchedule(w)
-                if (d) setDailySchedule(d)
-              }}
-            />
+            !isReadonly ? (
+              <ScheduleManager 
+                selectedDate={selectedDate} 
+                initialWeeklySchedule={weeklySchedule} 
+                initialDailySchedule={dailySchedule}
+                onUpdated={() => { 
+                  fetchWeeklySchedule(); 
+                  fetchDailySchedule(selectedDate);
+                  fetchRecordingDates();
+                  fetchCompletedDates();
+                }} 
+                onOptimisticSync={(w, d) => {
+                  if (w) setWeeklySchedule(w)
+                  if (d) setDailySchedule(d)
+                }}
+              />
+            ) : null
           ) : activeMenu === 'task' ? (
-            <TaskManager 
-              selectedDate={selectedDate} 
-              initialWeeklyTask={weeklyTask} 
-              initialDailyTask={dailyTask}
-              initialDailySchedule={dailySchedule}
-              onToggleRecordingTask={handleToggleCompleteTodayProgram}
-              onUpdated={() => { 
-                fetchWeeklyTask(); 
-                fetchDailyTask(selectedDate);
-                fetchTaskDates();
-                fetchCompletedTaskDates();
-              }} 
-              onOptimisticSync={(w, d) => {
-                if (w) setWeeklyTask(w)
-                if (d) setDailyTask(d)
-              }}
-            />
+            !isReadonly ? (
+              <TaskManager 
+                selectedDate={selectedDate} 
+                initialWeeklyTask={weeklyTask} 
+                initialDailyTask={dailyTask}
+                initialDailySchedule={dailySchedule}
+                onToggleRecordingTask={handleToggleCompleteTodayProgram}
+                onUpdated={() => { 
+                  fetchWeeklyTask(); 
+                  fetchDailyTask(selectedDate);
+                  fetchTaskDates();
+                  fetchCompletedTaskDates();
+                }} 
+                onOptimisticSync={(w, d) => {
+                  if (w) setWeeklyTask(w)
+                  if (d) setDailyTask(d)
+                }}
+              />
+            ) : null
           ) : null}
           
           <div className="mt-1 flex justify-end text-right flex-shrink-0">

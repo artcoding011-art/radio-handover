@@ -8,5 +8,6 @@ export default async function HomePage() {
     redirect('/login')
   }
 
-  return <MainClient userId={session.userId} />
+  return <MainClient userId={session.userId} isReadonly={session.role === 'readonly'} />
 }
+

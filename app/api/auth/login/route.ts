@@ -9,14 +9,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: '아이디와 비밀번호를 입력하세요.' }, { status: 400 })
     }
 
-    const valid = await verifyCredentials(id, password)
-    if (!valid) {
+    const role = await verifyCredentials(id, password)
+    if (!role) {
       return NextResponse.json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 })
     }
 
-    const token = await createToken(id)
+    const token = await createToken(id, role)
 
-    const response = NextResponse.json({ success: true })
+    const response = NextResponse.json({ success: true, role })
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -31,3 +31,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
 }
+
