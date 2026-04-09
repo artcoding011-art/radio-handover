@@ -2,6 +2,7 @@
 
 import Calendar from 'react-calendar'
 import { format } from 'date-fns'
+import { isKoreanHoliday } from '@/lib/holidays'
 
 type ValuePiece = Date | null
 type Value = ValuePiece | [ValuePiece, ValuePiece]
@@ -40,11 +41,13 @@ export default function ScheduleCalendar({
           calendarType="gregory"
           onActiveStartDateChange={handleActiveStartDateChange}
           tileClassName={({ date, view }) => {
+            const classes: string[] = ['relative']
             if (view === 'month') {
               const dateStr = format(date, 'yyyy-MM-dd')
-              if (completedDates.includes(dateStr)) return 'completed-tile'
+              if (completedDates.includes(dateStr)) classes.push('completed-tile')
+              if (isKoreanHoliday(date)) classes.push('holiday-tile')
             }
-            return 'relative'
+            return classes.join(' ')
           }}
           tileContent={({ date, view }) => {
             if (view === 'month') {

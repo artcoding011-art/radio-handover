@@ -147,3 +147,9 @@
   outline: 2px solid #1e40af !important; /* 선택되었음을 알리는 파란색 테두리 (크기 영향 없음) */
   outline-offset: -2px;
 }
+
+/* 공휴일 타일 스타일 (일요일과 동일한 빨간색) */
+.holiday-tile {
+  color: #ef4444 !important;
+}
+

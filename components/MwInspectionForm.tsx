@@ -43,6 +43,8 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
   const [data, setData] = useState<MwInspectionData>(createEmptyMwData(date))
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
   const [showSavePopup, setShowSavePopup] = useState(false)
 
   const [isNew, setIsNew] = useState(true)
@@ -55,15 +57,18 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
         if (res.data) {
           setData(res.data)
           setIsNew(false)
+          setIsEditing(false)
         } else {
           setData(createEmptyMwData(date))
           setIsNew(true)
+          setIsEditing(true)
         }
       })
       .catch(err => {
         console.error('Failed to fetch MW inspection data:', err)
         setData(createEmptyMwData(date))
         setIsNew(true)
+        setIsEditing(true)
       })
       .finally(() => setLoading(false))
   }, [dateStr, date])
@@ -96,6 +101,7 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
         setShowSavePopup(true)
         setTimeout(() => setShowSavePopup(false), 3000)
         setIsNew(false)
+        setIsEditing(false)
         if (onSaveSuccess) onSaveSuccess()
       }
     } catch (err) {
@@ -107,7 +113,7 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
   }
 
   const handleDelete = async () => {
-    if (!confirm('정말 수정상태로 되돌리시겠습니까?\n저장된 데이터가 삭제되고 점검 대기 상태로 변경됩니다.')) {
+    if (!confirm('정말 데이터를 초기화하시겠습니까?\n저장된 데이터가 영구적으로 삭제됩니다.')) {
       return
     }
 
@@ -119,16 +125,61 @@ export default function MwInspectionForm({ date, onSaveSuccess }: MwInspectionFo
       if (res.ok) {
         setData(createEmptyMwData(date))
         setIsNew(true)
+        setIsEditing(true)
         if (onSaveSuccess) onSaveSuccess()
-        setToastMessage('점검 대기 상태로 변경되었습니다.')
+        setToastMessage('초기화되었습니다.')
         setShowSavePopup(true)
         setTimeout(() => setShowSavePopup(false), 3000)
       }
     } catch (err) {
       console.error('Failed to delete MW inspection data:', err)
-      alert('상태 변경에 실패했습니다.')
+      alert('삭제에 실패했습니다.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (isNew || isEditing) {
+      alert('먼저 저장해야 PDF를 다운로드할 수 있습니다.')
+      return
+    }
+    
+    setIsExporting(true)
+    // 리액트 상태 업데이트 후 렌더링을 기다림
+    await new Promise(r => setTimeout(r, 100))
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const { jsPDF } = await import('jspdf')
+
+      const el = document.getElementById('mw-print-area')
+      if (!el) throw new Error('Print area not found')
+
+      const canvas = await html2canvas(el, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false
+      })
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      })
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST')
+      pdf.save(`MW점검일지_${dateStr}.pdf`)
+    } catch (error) {
+      console.error('PDF export failed', error)
+      alert('PDF 변환 중 오류가 발생했습니다.')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -273,34 +324,60 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {!isNew && (
+          <button 
+            onClick={handleExportPdf}
+            disabled={isExporting || isNew || isEditing}
+            className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-[14px] font-bold px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            PDF
+          </button>
+          
+          {!isEditing ? (
             <button 
-              onClick={handleDelete} 
+              onClick={() => setIsEditing(true)} 
               disabled={saving}
-              className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-[14px] font-bold px-5 py-2.5 bg-white text-red-600 border border-red-200 hover:bg-red-50 active:bg-red-100 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 text-[14px] font-bold px-5 py-2.5 bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 active:bg-blue-100 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               수정
             </button>
+          ) : (
+            <>
+              {!isNew && (
+                <button 
+                  onClick={handleDelete} 
+                  disabled={saving}
+                  className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-[14px] font-bold px-5 py-2.5 bg-white text-red-600 border border-red-200 hover:bg-red-50 active:bg-red-100 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  초기화
+                </button>
+              )}
+              <button 
+                onClick={handleSave} 
+                disabled={saving}
+                className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 text-[14px] font-bold px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                {saving ? '저장 중...' : '저장'}
+              </button>
+            </>
           )}
-          <button 
-            onClick={handleSave} 
-            disabled={saving}
-            className="flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 text-[14px] font-bold px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
-            {saving ? '저장 중...' : '저장'}
-          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 bg-[#f8fafc]/50">
-        <div className="max-w-[1200px] mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden p-6 mb-6">
-          
+      <div className={`flex-1 ${isExporting ? 'overflow-visible h-auto' : 'overflow-auto'} p-6 bg-[#f8fafc]/50`}>
+        <div id="mw-print-area" className="max-w-[1200px] mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden p-6 mb-6">
+          <fieldset disabled={!isEditing} className="border-0 p-0 m-0">
           {/* Top Form Section */}
           <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
             <div className="flex items-center gap-2">
@@ -383,7 +460,7 @@ const DataRowComponent = ({ mediumLabel, rowLabel, rowKey, isEven, data, setData
               </tbody>
             </table>
           </div>
-
+          </fieldset>
         </div>
       </div>
     </div>

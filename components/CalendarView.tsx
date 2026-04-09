@@ -2,6 +2,7 @@
 
 import Calendar from 'react-calendar'
 import { format } from 'date-fns'
+import { isKoreanHoliday } from '@/lib/holidays'
 
 type ValuePiece = Date | null
 type Value = ValuePiece | [ValuePiece, ValuePiece]
@@ -26,8 +27,12 @@ export default function CalendarView({
   const entrySet = new Set(entryDates)
 
   function tileClassName({ date, view }: { date: Date; view: string }) {
-    if (view === 'month' && entrySet.has(format(date, 'yyyy-MM-dd'))) return 'has-entry'
-    return null
+    const classes: string[] = []
+    if (view === 'month') {
+      if (entrySet.has(format(date, 'yyyy-MM-dd'))) classes.push('has-entry')
+      if (isKoreanHoliday(date)) classes.push('holiday-tile')
+    }
+    return classes.length > 0 ? classes.join(' ') : null
   }
 
   function tileContent({ date, view }: { date: Date; view: string }) {

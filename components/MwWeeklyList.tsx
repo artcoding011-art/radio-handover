@@ -150,13 +150,7 @@ export default function MwWeeklyList({ selectedDate, onDateChange, refreshKey }:
                     </span>
                   </div>
 
-                  {isSelected && (
-                    <div className={`${isCompleted ? 'text-green-600' : 'text-blue-600'} ml-1`}>
-                      <svg className="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
+
                 </div>
               </div>
             )

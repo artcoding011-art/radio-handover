@@ -2,6 +2,7 @@
 
 import Calendar from 'react-calendar'
 import { format } from 'date-fns'
+import { isKoreanHoliday } from '@/lib/holidays'
 
 type ValuePiece = Date | null
 type Value = ValuePiece | [ValuePiece, ValuePiece]
@@ -37,7 +38,10 @@ export default function StaffCalendar({
           locale="ko-KR"
           calendarType="gregory"
           onActiveStartDateChange={handleActiveStartDateChange}
-          tileClassName="relative"
+          tileClassName={({ date, view }) => {
+            if (view === 'month' && isKoreanHoliday(date)) return 'relative holiday-tile'
+            return 'relative'
+          }}
           tileContent={({ date, view }) => {
             if (view === 'month') {
               const dateStr = format(date, 'yyyy-MM-dd')
