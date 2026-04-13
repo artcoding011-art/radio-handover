@@ -92,6 +92,14 @@ const getOverlappingStaff = (startTime: string, endTime: string, assignments: an
   });
 }
 
+// 로컬 타임 기준 오늘 자정(00:00:00) Date 반환 유틸
+// react-calendar v5는 UTC 기준으로 날짜를 비교하므로,
+// new Date()처럼 시각이 포함된 Date를 넘기면 KST에서 하루 전날로 보이는 버그가 있음
+function getLocalMidnight(date?: Date): Date {
+  const d = date ?? new Date()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)
+}
+
 export default function MainClient({ userId, isReadonly = false }: MainClientProps) {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -101,10 +109,11 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
       const dateParam = params.get('date')
       if (dateParam) {
         const parsed = new Date(dateParam + 'T00:00:00')
-        if (!isNaN(parsed.getTime())) return parsed
+        if (!isNaN(parsed.getTime())) return getLocalMidnight(parsed)
       }
     }
-    return new Date()
+    // new Date() 대신 로컬 자정으로 정규화 (react-calendar UTC 버그 방지)
+    return getLocalMidnight()
   })
   const [entryDates, setEntryDates] = useState<string[]>([])
   const [mwRefreshKey, setMwRefreshKey] = useState(0)
@@ -133,10 +142,10 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
       const dateParam = params.get('date')
       if (dateParam) {
         const parsed = new Date(dateParam + 'T00:00:00')
-        if (!isNaN(parsed.getTime())) return parsed
+        if (!isNaN(parsed.getTime())) return getLocalMidnight(parsed)
       }
     }
-    return new Date()
+    return getLocalMidnight()
   })
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
@@ -267,12 +276,14 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
   }, [])
 
   function handleDateChangeRequest(newDate: Date) {
+    // react-calendar에서 전달된 Date도 로컬 자정으로 정규화
+    const normalizedDate = getLocalMidnight(newDate)
     if (isDirty) {
-      setPendingDate(newDate)
+      setPendingDate(normalizedDate)
     } else {
-      setSelectedDate(newDate)
+      setSelectedDate(normalizedDate)
       // 달력이 바뀔 수도 있으므로 현재 월 업데이트
-      setCurrentMonth(newDate)
+      setCurrentMonth(normalizedDate)
     }
   }
 
