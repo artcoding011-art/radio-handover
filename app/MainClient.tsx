@@ -1668,27 +1668,23 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                       </div>
                     ) : (
                       mergedTaskItems.map(task => {
-                        const isTaskCompleted = task.isRecording
-                          ? dailySchedule?.completedProgramIds?.includes(task.realId)
-                          : dailyTask?.completedTaskIds?.includes(task.id);
+                        const isTaskCompleted = dailyTask?.completedTaskIds?.includes(task.id);
                         return (
                           <div key={task.id}
                             className={`relative overflow-hidden rounded-lg p-2.5 border flex items-center gap-3 transition-colors
-                            ${task.isRecording
-                              ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500'
-                              : task.isDaily
+                            ${task.isDaily
                                 ? 'bg-amber-50/60 border-amber-200 border-l-4 border-l-amber-500'
                                 : 'bg-indigo-50/60 border-indigo-200 border-l-4 border-l-indigo-500'
                             }
                             ${isTaskCompleted ? 'opacity-50 grayscale-[0.5]' : ''}`}
                           >
                             <span className={`text-[12px] font-mono font-bold flex-shrink-0
-                              ${task.isRecording ? 'text-emerald-700' : task.isDaily ? 'text-amber-700' : 'text-indigo-700'}`}>
+                              ${task.isDaily ? 'text-amber-700' : 'text-indigo-700'}`}>
                               {task.startTime}~{task.endTime}
                             </span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-black flex-shrink-0
-                              ${task.isRecording ? 'bg-emerald-500 text-white' : task.isDaily ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
-                              {task.isRecording ? '녹음' : task.isDaily ? '일간' : '주간'}
+                              ${task.isDaily ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                              {task.isDaily ? '일간' : '주간'}
                             </span>
                             <span className={`font-semibold text-[13px] flex-1 min-w-0 truncate ${isTaskCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                               {task.taskName}
@@ -1698,7 +1694,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                             )}
                             {!isTaskCompleted && (
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse
-                                ${task.isRecording ? 'bg-emerald-500' : task.isDaily ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                                ${task.isDaily ? 'bg-amber-500' : 'bg-indigo-500'}`} />
                             )}
                           </div>
                         )
