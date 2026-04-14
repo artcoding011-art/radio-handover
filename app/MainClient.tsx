@@ -986,12 +986,14 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
             >
               제작일정
             </button>
-            <button 
-              onClick={() => setActiveMenu('task')}
-              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'task' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
-            >
-              현업주요사항
-            </button>
+            {!isReadonly && (
+              <button 
+                onClick={() => setActiveMenu('task')}
+                className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'task' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+              >
+                현업주요사항
+              </button>
+            )}
             {!isReadonly && (
               <button 
                 onClick={() => setActiveMenu('handover')}
@@ -1633,7 +1635,79 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                   if (d) setDailySchedule(d)
                 }}
               />
-            ) : null
+            ) : (() => {
+              // radio(readonly) 전용: 달력 아래 업무일정 통합 표시
+              const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+              const wTasks = weeklyTask?.[dayIndex] || [];
+              const dTasks = dailyTask?.tasks || [];
+              const filteredWTasks = wTasks.filter(p => !dailyTask?.canceledWeeklyIds?.includes(p.id));
+
+              const mergedTaskItems = [
+                ...filteredWTasks.map(p => ({ ...p, isDaily: false, isRecording: false })),
+                ...dTasks.map(p => ({ ...p, isDaily: true, isRecording: false }))
+              ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+              return (
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden flex-shrink-0">
+                  <div className="bg-gradient-to-r from-slate-50 to-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      오늘의 업무일정
+                      <span className="text-gray-400 font-normal text-xs ml-1">{format(selectedDate, 'M월 d일 (eee)', { locale: ko })}</span>
+                    </h3>
+                    {mergedTaskItems.length > 0 && (
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{mergedTaskItems.length}건</span>
+                    )}
+                  </div>
+                  <div className="p-3 max-h-[320px] overflow-y-auto space-y-1.5">
+                    {mergedTaskItems.length === 0 ? (
+                      <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                        해당 일자에 등록된 업무가 없습니다.
+                      </div>
+                    ) : (
+                      mergedTaskItems.map(task => {
+                        const isTaskCompleted = task.isRecording
+                          ? dailySchedule?.completedProgramIds?.includes(task.realId)
+                          : dailyTask?.completedTaskIds?.includes(task.id);
+                        return (
+                          <div key={task.id}
+                            className={`relative overflow-hidden rounded-lg p-2.5 border flex items-center gap-3 transition-colors
+                            ${task.isRecording
+                              ? 'bg-emerald-50/60 border-emerald-200 border-l-4 border-l-emerald-500'
+                              : task.isDaily
+                                ? 'bg-amber-50/60 border-amber-200 border-l-4 border-l-amber-500'
+                                : 'bg-indigo-50/60 border-indigo-200 border-l-4 border-l-indigo-500'
+                            }
+                            ${isTaskCompleted ? 'opacity-50 grayscale-[0.5]' : ''}`}
+                          >
+                            <span className={`text-[12px] font-mono font-bold flex-shrink-0
+                              ${task.isRecording ? 'text-emerald-700' : task.isDaily ? 'text-amber-700' : 'text-indigo-700'}`}>
+                              {task.startTime}~{task.endTime}
+                            </span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-black flex-shrink-0
+                              ${task.isRecording ? 'bg-emerald-500 text-white' : task.isDaily ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                              {task.isRecording ? '녹음' : task.isDaily ? '일간' : '주간'}
+                            </span>
+                            <span className={`font-semibold text-[13px] flex-1 min-w-0 truncate ${isTaskCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                              {task.taskName}
+                            </span>
+                            {isTaskCompleted && (
+                              <span className="text-[10px] font-black text-amber-500 border border-amber-400 px-1.5 py-0.5 rounded flex-shrink-0 opacity-70 tracking-wider">완료</span>
+                            )}
+                            {!isTaskCompleted && (
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse
+                                ${task.isRecording ? 'bg-emerald-500' : task.isDaily ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })()
           ) : activeMenu === 'task' ? (
             !isReadonly ? (
               <TaskManager 
