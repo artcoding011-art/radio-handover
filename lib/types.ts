@@ -24,6 +24,7 @@ export interface DailyScheduleData {
   MFM: ScheduleProgram[];
   canceledWeeklyIds?: string[];
   completedProgramIds?: string[];
+  manuallyIncompleteIds?: string[];
 }
 
 export interface TaskItem {
@@ -41,6 +42,7 @@ export interface DailyTaskData {
   tasks: TaskItem[];
   canceledWeeklyIds?: string[];
   completedTaskIds?: string[];
+  manuallyIncompleteIds?: string[];
 }
 
 export type WorkShift = '오전(09:00~14:00)' | '오후(14:00~18:00)' | '종일(09:00~18:00)';

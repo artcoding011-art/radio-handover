@@ -599,76 +599,210 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
     fetchDailyStaff(selectedDate)
   }, [selectedDate, fetchDailySchedule, fetchCompletedDates, fetchDailyTask, fetchCompletedTaskDates, fetchDailyStaff])
 
+  // 자동 완료 스케줄러 (1회성 타이머)
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+    const now = new Date();
+    
+    // ⭐️ 리팩토링: 공통 타이머 등록 함수
+    const registerAutoCompleteTimer = (id: string, timeStr: string, isCompleted: boolean, isManuallyIncomplete: boolean, executeCallback: (id: string) => void) => {
+      if (isCompleted || isManuallyIncomplete || !timeStr) return;
+      const [hh, mm] = timeStr.split(':').map(Number);
+      if (isNaN(hh) || isNaN(mm)) return;
+      
+      const targetTime = new Date(selectedDate);
+      targetTime.setHours(hh, mm, 0, 0);
+      const executeTime = targetTime.getTime() + 60 * 1000; // 1분 뒤
+      const delay = executeTime - now.getTime();
+      const isToday = format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+      
+      if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
+        timeouts.push(setTimeout(() => executeCallback(id), delay));
+      } else if (delay <= 0 && isToday) {
+        // 이미 시간이 지났지만 아직 완료 안 된 오늘 일정 자동 완료 (새로고침 / 절전모드 깨어남 대비)
+        timeouts.push(setTimeout(() => executeCallback(id), 1500));
+      }
+    };
+
+    // 1. 제작일정 알람 등록
+    if (weeklySchedule || dailySchedule) {
+      (['1R', '2R', 'MFM'] as const).forEach(medium => {
+        const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+        const wPrograms = weeklySchedule?.[medium]?.[dayIndex] || [];
+        const dPrograms = dailySchedule?.[medium] || [];
+        const filteredWPrograms = wPrograms.filter((p: any) => !dailySchedule?.canceledWeeklyIds?.includes(p.id));
+        
+        [...filteredWPrograms, ...dPrograms].forEach((prog: any) => {
+          const isCompleted = dailySchedule?.completedProgramIds?.includes(prog.id);
+          const isManuallyIncomplete = dailySchedule?.manuallyIncompleteIds?.includes(prog.id);
+          registerAutoCompleteTimer(prog.id, prog.endTime, !!isCompleted, !!isManuallyIncomplete, executeAutoCompleteProgram);
+        });
+      });
+    }
+
+    // 2. 업무일정 알람 등록
+    if (weeklyTask || dailyTask) {
+      const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+      const wTasks = weeklyTask?.[dayIndex] || [];
+      const dTasks = dailyTask?.tasks || [];
+      const filteredWTasks = wTasks.filter((p: any) => !dailyTask?.canceledWeeklyIds?.includes(p.id));
+      
+      [...filteredWTasks, ...dTasks].forEach((task: any) => {
+        const isCompleted = dailyTask?.completedTaskIds?.includes(task.id);
+        const isManuallyIncomplete = dailyTask?.manuallyIncompleteIds?.includes(task.id);
+        registerAutoCompleteTimer(task.id, task.endTime, !!isCompleted, !!isManuallyIncomplete, executeAutoCompleteTask);
+      });
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 또는 상태 재갱신 시 이전 예약된 타이머 모두 해제
+      timeouts.forEach(clearTimeout);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, weeklySchedule, dailySchedule, weeklyTask, dailyTask]);
+
 
   const requestDeleteTodayProgram = (medium: '1R'|'2R'|'MFM', progId: string, isDaily: boolean) => {
     setDeleteTarget({ medium, id: progId, isDaily })
   }
+
+  // ⭐️ 리팩토링: 상태 갱신 및 API 호출 공통 유틸리티
+  const updateDailyScheduleData = async (updater: (data: DailyScheduleData) => void) => {
+    const updated: DailyScheduleData = dailySchedule 
+      ? JSON.parse(JSON.stringify(dailySchedule)) 
+      : { '1R':[], '2R':[], 'MFM':[], canceledWeeklyIds: [], completedProgramIds: [] }
+
+    if (!updated.completedProgramIds) updated.completedProgramIds = []
+    if (!updated.canceledWeeklyIds) updated.canceledWeeklyIds = []
+
+    updater(updated)
+    setDailySchedule(updated)
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      fetchDailySchedule(selectedDate)
+      fetchRecordingDates()
+    } catch {
+      fetchDailySchedule(selectedDate) // 실패 시 롤백
+    }
+  }
+
+  const updateDailyTaskData = async (updater: (data: DailyTaskData) => void) => {
+    const updated: DailyTaskData = dailyTask 
+      ? JSON.parse(JSON.stringify(dailyTask)) 
+      : { tasks: [], canceledWeeklyIds: [], completedTaskIds: [] }
+    
+    if (!updated.completedTaskIds) updated.completedTaskIds = []
+    if (!updated.canceledWeeklyIds) updated.canceledWeeklyIds = []
+
+    updater(updated)
+    setDailyTask(updated)
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      fetchDailyTask(selectedDate)
+      fetchTaskDates()
+      fetchCompletedTaskDates()
+    } catch {
+      fetchDailyTask(selectedDate)
+    }
+  }
+
+  // --- 자동 완료 (1회성 타이머 구동용) 함수 ---
+  // ⭐️ stale closure 방지: 타이머 실행 시점에 DB에서 최신 데이터를 직접 조회 후 업데이트
+  const executeAutoCompleteProgram = async (progId: string) => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      // 최신 DB 데이터 조회
+      const res = await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`)
+      if (!res.ok) return
+      const latest = await res.json()
+      const fresh: DailyScheduleData = latest.schedule || { '1R':[], '2R':[], 'MFM':[], canceledWeeklyIds: [], completedProgramIds: [] }
+      if (!fresh.completedProgramIds) fresh.completedProgramIds = []
+      if (!fresh.manuallyIncompleteIds) fresh.manuallyIncompleteIds = []
+      if (fresh.completedProgramIds.includes(progId)) return // 이미 완료됨
+      if (fresh.manuallyIncompleteIds.includes(progId)) return // 수동으로 오버라이드 됨
+
+      fresh.completedProgramIds.push(progId)
+      setDailySchedule(fresh)
+      await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fresh)
+      })
+      fetchDailySchedule(selectedDate)
+      fetchRecordingDates()
+    } catch {
+      fetchDailySchedule(selectedDate)
+    }
+  }
+
+  const executeAutoCompleteTask = async (taskId: string) => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    try {
+      // 최신 DB 데이터 조회
+      const res = await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`)
+      if (!res.ok) return
+      const latest = await res.json()
+      const fresh: DailyTaskData = latest.task || { tasks: [], canceledWeeklyIds: [], completedTaskIds: [] }
+      if (!fresh.completedTaskIds) fresh.completedTaskIds = []
+      if (!fresh.manuallyIncompleteIds) fresh.manuallyIncompleteIds = []
+      if (fresh.completedTaskIds.includes(taskId)) return // 이미 완료됨
+      if (fresh.manuallyIncompleteIds.includes(taskId)) return // 수동으로 오버라이드 됨
+
+      fresh.completedTaskIds.push(taskId)
+      setDailyTask(fresh)
+      await fetch(`/api/task/daily/${dateStr}?_t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fresh)
+      })
+      fetchDailyTask(selectedDate)
+      fetchTaskDates()
+      fetchCompletedTaskDates()
+    } catch {
+      fetchDailyTask(selectedDate)
+    }
+  }
+  // ----------------------------------------
 
   const executeDeleteTodayProgram = async () => {
     if (!deleteTarget) return
     const { medium, id: progId, isDaily } = deleteTarget
     setDeleteTarget(null)
 
-    const updated: DailyScheduleData = dailySchedule 
-      ? JSON.parse(JSON.stringify(dailySchedule)) 
-      : { '1R':[], '2R':[], 'MFM':[], canceledWeeklyIds: [] }
-
-    if (!updated.canceledWeeklyIds) updated.canceledWeeklyIds = []
-
-    if (isDaily) {
-      updated[medium] = (updated[medium] || []).filter((p: any) => p.id !== progId)
-    } else {
-      updated.canceledWeeklyIds.push(progId)
-    }
-
-    // 즉각적인 화면 반영 (Optimistic UI Update)
-    setDailySchedule(updated)
-
-    const dateStr = format(selectedDate, 'yyyy-MM-dd')
-    try {
-      await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      })
-      // 백그라운드 재동기화
-      fetchDailySchedule(selectedDate)
-      fetchRecordingDates()
-    } catch {
-      alert('일정 예외 처리 중 오류가 발생했습니다.')
-      fetchDailySchedule(selectedDate) // 실패 시 원복
-    }
+    updateDailyScheduleData(data => {
+      if (isDaily) {
+        data[medium] = (data[medium] || []).filter((p: any) => p.id !== progId)
+      } else {
+        data.canceledWeeklyIds!.push(progId)
+      }
+    })
   }
 
   const handleToggleCompleteTodayProgram = async (progId: string) => {
-    const updated: DailyScheduleData = dailySchedule 
-      ? JSON.parse(JSON.stringify(dailySchedule)) 
-      : { '1R':[], '2R':[], 'MFM':[], canceledWeeklyIds: [], completedProgramIds: [] }
-
-    if (!updated.completedProgramIds) updated.completedProgramIds = []
-
-    const isCompleted = updated.completedProgramIds.includes(progId)
-    if (isCompleted) {
-      updated.completedProgramIds = updated.completedProgramIds.filter(id => id !== progId)
-    } else {
-      updated.completedProgramIds.push(progId)
-    }
-
-    setDailySchedule(updated)
-
-    const dateStr = format(selectedDate, 'yyyy-MM-dd')
-    try {
-      await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      })
-      fetchDailySchedule(selectedDate)
-      fetchRecordingDates()
-    } catch {
-      alert('상태 업데이트 중 오류가 발생했습니다.')
-      fetchDailySchedule(selectedDate)
-    }
+    updateDailyScheduleData(data => {
+      if (!data.manuallyIncompleteIds) data.manuallyIncompleteIds = []
+      if (data.completedProgramIds!.includes(progId)) {
+        data.completedProgramIds = data.completedProgramIds!.filter(id => id !== progId)
+        if (!data.manuallyIncompleteIds.includes(progId)) {
+          data.manuallyIncompleteIds.push(progId)
+        }
+      } else {
+        data.completedProgramIds!.push(progId)
+        data.manuallyIncompleteIds = data.manuallyIncompleteIds.filter(id => id !== progId)
+      }
+    })
   }
 
   const handleBulkToggleComplete = async (medium: '1R'|'2R'|'MFM') => {
@@ -685,33 +819,19 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
     const currentCompleted = dailySchedule.completedProgramIds || []
     const allCompletedInMedium = allIdsInMedium.every(id => currentCompleted.includes(id))
 
-    const updated: DailyScheduleData = JSON.parse(JSON.stringify(dailySchedule))
-    if (!updated.completedProgramIds) updated.completedProgramIds = []
-
-    if (allCompletedInMedium) {
-      // 해당 매체 항목 완료 ID들만 제거 (해제)
-      updated.completedProgramIds = updated.completedProgramIds.filter(id => !allIdsInMedium.includes(id))
-    } else {
-      // 해당 매체 항목 완료 ID들 모두 추가 (완료)
-      const otherCompleted = updated.completedProgramIds.filter(id => !allIdsInMedium.includes(id))
-      updated.completedProgramIds = [...otherCompleted, ...allIdsInMedium]
-    }
-
-    // 낙관적 업데이트
-    setDailySchedule(updated)
-
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      await fetch(`/api/schedule/daily/${dateStr}?_t=${Date.now()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      })
-      fetchDailySchedule(selectedDate)
-    } catch {
-      alert('일괄 처리 중 오류가 발생했습니다.')
-      fetchDailySchedule(selectedDate)
-    }
+    updateDailyScheduleData(data => {
+      if (!data.manuallyIncompleteIds) data.manuallyIncompleteIds = []
+      if (allCompletedInMedium) {
+        data.completedProgramIds = data.completedProgramIds!.filter(id => !allIdsInMedium.includes(id))
+        allIdsInMedium.forEach(id => {
+          if (!data.manuallyIncompleteIds!.includes(id)) data.manuallyIncompleteIds!.push(id)
+        })
+      } else {
+        const otherCompleted = data.completedProgramIds!.filter(id => !allIdsInMedium.includes(id))
+        data.completedProgramIds = [...otherCompleted, ...allIdsInMedium]
+        data.manuallyIncompleteIds = data.manuallyIncompleteIds.filter(id => !allIdsInMedium.includes(id))
+      }
+    })
   }
 
   const requestDeleteTodayTask = (progId: string, isDaily: boolean) => {
@@ -758,12 +878,17 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
       : { tasks:[], canceledWeeklyIds: [], completedTaskIds: [] }
 
     if (!updated.completedTaskIds) updated.completedTaskIds = []
+    if (!updated.manuallyIncompleteIds) updated.manuallyIncompleteIds = []
 
     const isCompleted = updated.completedTaskIds.includes(progId)
     if (isCompleted) {
       updated.completedTaskIds = updated.completedTaskIds.filter(id => id !== progId)
+      if (!updated.manuallyIncompleteIds.includes(progId)) {
+        updated.manuallyIncompleteIds.push(progId)
+      }
     } else {
       updated.completedTaskIds.push(progId)
+      updated.manuallyIncompleteIds = updated.manuallyIncompleteIds.filter(id => id !== progId)
     }
 
     setDailyTask(updated)
@@ -799,12 +924,17 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
 
     const updated: DailyTaskData = JSON.parse(JSON.stringify(dailyTask))
     if (!updated.completedTaskIds) updated.completedTaskIds = []
+    if (!updated.manuallyIncompleteIds) updated.manuallyIncompleteIds = []
 
     if (allCompletedInDay) {
       updated.completedTaskIds = updated.completedTaskIds.filter(id => !allIdsInDay.includes(id))
+      allIdsInDay.forEach(id => {
+        if (!updated.manuallyIncompleteIds!.includes(id)) updated.manuallyIncompleteIds!.push(id)
+      })
     } else {
       const otherCompleted = updated.completedTaskIds.filter(id => !allIdsInDay.includes(id))
       updated.completedTaskIds = [...otherCompleted, ...allIdsInDay]
+      updated.manuallyIncompleteIds = updated.manuallyIncompleteIds.filter(id => !allIdsInDay.includes(id))
     }
 
     setDailyTask(updated)
