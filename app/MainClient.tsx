@@ -189,6 +189,17 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
     }
   }, [])
 
+  // URL의 date 파라미터를 읽어온 후 주소창에서 제거 (새로고침 시 과거 날짜로 고정되는 현상 방지)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('date')) {
+        url.searchParams.delete('date')
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
+  }, [])
+
   // ── DB 변경 감지 폴링 (1분 간격) ──
   // /api/db-status를 1분마다 확인하여 updated_at이 달라지면 전체 새로고침합니다.
   useEffect(() => {
