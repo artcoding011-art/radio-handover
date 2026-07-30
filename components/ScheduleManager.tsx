@@ -56,16 +56,20 @@ export default function ScheduleManager({
   selectedDate,
   initialWeeklySchedule, 
   initialDailySchedule,
+  weeklyTask,
+  dailyTask,
   onUpdated,
   onOptimisticSync
 }: { 
   selectedDate: Date,
   initialWeeklySchedule: WeeklyScheduleData | null, 
   initialDailySchedule: DailyScheduleData | null,
+  weeklyTask?: any,
+  dailyTask?: any,
   onUpdated: () => void,
   onOptimisticSync: (w: WeeklyScheduleData | null, d: DailyScheduleData | null) => void
 }) {
-  const [tab, setTab] = useState<'weekly' | 'daily'>('daily')
+  const [tab, setTab] = useState<'weekly' | 'daily' | 'issue'>('issue')
   
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(initialWeeklySchedule || createEmptyWeeklySchedule())
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(initialDailySchedule || createEmptyDailySchedule())
@@ -244,6 +248,15 @@ export default function ScheduleManager({
       {/* 최상단 메인 탭 */}
       <div className="flex bg-slate-100 border-b border-gray-200">
         <button 
+          onClick={() => setTab('issue')}
+          className={`flex-1 py-3 text-sm font-bold transition-all flex justify-center items-center gap-2 ${tab === 'issue' ? 'bg-white text-indigo-700 shadow-[inset_0_3px_0_0_#4f46e5]' : 'text-gray-500 hover:bg-slate-50'}`}
+        >
+          <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          현업주요사항
+        </button>
+        <button 
           onClick={() => setTab('weekly')}
           className={`flex-1 py-3 text-sm font-bold transition-all flex justify-center items-center gap-2 ${tab === 'weekly' ? 'bg-white text-indigo-700 shadow-[inset_0_3px_0_0_#4f46e5]' : 'text-gray-500 hover:bg-slate-50'}`}
         >
@@ -262,6 +275,76 @@ export default function ScheduleManager({
       {/* 본문 영역 */}
       <div className="p-4 flex-1 overflow-y-auto">
         
+        {tab === 'issue' ? (() => {
+          const dayIndex = selectedDate.getDay() as 0|1|2|3|4|5|6;
+          const wTasks = weeklyTask?.[dayIndex] || [];
+          const dTasks = dailyTask?.tasks || [];
+          const filteredWTasks = wTasks.filter((p: any) => !dailyTask?.canceledWeeklyIds?.includes(p.id));
+
+          const mergedTaskItems = [
+            ...filteredWTasks.map((p: any) => ({ ...p, isDaily: false, isRecording: false })),
+            ...dTasks.map((p: any) => ({ ...p, isDaily: true, isRecording: false }))
+          ].sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+
+          return (
+            <div className="bg-white rounded-xl overflow-hidden h-full flex flex-col">
+              <div className="p-2 flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    전체 업무 (현업주요사항)
+                  </h3>
+                  {mergedTaskItems.length > 0 && (
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{mergedTaskItems.length}건</span>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                  {mergedTaskItems.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                      해당 일자에 등록된 전체 업무가 없습니다.
+                    </div>
+                  ) : (
+                    mergedTaskItems.map((task: any) => {
+                      const isTaskCompleted = dailyTask?.completedTaskIds?.includes(task.id);
+                      return (
+                        <div key={task.id}
+                          className={`relative overflow-hidden rounded-lg p-2.5 border flex items-center gap-3 transition-colors
+                          ${task.isDaily
+                              ? 'bg-amber-50/60 border-amber-200 border-l-4 border-l-amber-500'
+                              : 'bg-indigo-50/60 border-indigo-200 border-l-4 border-l-indigo-500'
+                          }
+                          ${isTaskCompleted ? 'opacity-50 grayscale-[0.5]' : ''}`}
+                        >
+                          <span className={`text-[12px] font-mono font-bold flex-shrink-0
+                            ${task.isDaily ? 'text-amber-700' : 'text-indigo-700'}`}>
+                            {task.startTime}~{task.endTime}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-black flex-shrink-0
+                            ${task.isDaily ? 'bg-amber-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                            {task.isDaily ? '일간' : '주간'}
+                          </span>
+                          <span className={`font-semibold text-[13px] flex-1 min-w-0 truncate ${isTaskCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                            {task.taskName}
+                          </span>
+                          {isTaskCompleted && (
+                            <span className="text-[10px] font-black text-amber-500 border border-amber-400 px-1.5 py-0.5 rounded flex-shrink-0 opacity-70 tracking-wider">완료</span>
+                          )}
+                          {!isTaskCompleted && (
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse
+                              ${task.isDaily ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })() : (
+          <>
         {/* 매체 선택 탭 */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex gap-1.5">
@@ -389,6 +472,8 @@ export default function ScheduleManager({
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* 커스텀 삭제 확인 모달 */}

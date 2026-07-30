@@ -1765,6 +1765,8 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 selectedDate={selectedDate} 
                 initialWeeklySchedule={weeklySchedule} 
                 initialDailySchedule={dailySchedule}
+                weeklyTask={weeklyTask}
+                dailyTask={dailyTask}
                 onUpdated={() => { 
                   fetchWeeklySchedule(); 
                   fetchDailySchedule(selectedDate);
