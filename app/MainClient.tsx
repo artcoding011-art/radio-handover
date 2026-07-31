@@ -13,6 +13,7 @@ import TaskManager from '@/components/TaskManager'
 import StaffCalendar from '@/components/StaffCalendar'
 import StaffManager from '@/components/StaffManager'
 import StaffScheduleInput from '@/components/StaffScheduleInput'
+import SearchTab from '@/components/SearchTab'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
@@ -102,32 +103,12 @@ function getLocalMidnight(date?: Date): Date {
 
 export default function MainClient({ userId, isReadonly = false }: MainClientProps) {
   const router = useRouter()
-  const [selectedDate, setSelectedDate] = useState(() => {
-    // 자정 새로고침 시 URL에 ?date= 파라미터가 있으면 해당 날짜로 초기화
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const dateParam = params.get('date')
-      if (dateParam) {
-        const parsed = new Date(dateParam + 'T00:00:00')
-        if (!isNaN(parsed.getTime())) return getLocalMidnight(parsed)
-      }
-    }
-    // new Date() 대신 로컬 자정으로 정규화 (react-calendar UTC 버그 방지)
-    return getLocalMidnight()
-  })
+  const [selectedDate, setSelectedDate] = useState(() => getLocalMidnight())
   const [entryDates, setEntryDates] = useState<string[]>([])
   const [mwRefreshKey, setMwRefreshKey] = useState(0)
   const [selectedInfo, setSelectedInfo] = useState<SelectedInfo | null>(null)
   const [monthlyEntries, setMonthlyEntries] = useState<MonthlyEntry[]>([])
-  const [activeMonth, setActiveMonth] = useState(() => {
-    // 자정 새로고침 시 URL ?date= 파라미터 기반으로 월 초기화
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const dateParam = params.get('date')
-      if (dateParam && dateParam.length >= 7) return dateParam.substring(0, 7)
-    }
-    return format(new Date(), 'yyyy-MM')
-  })
+  const [activeMonth, setActiveMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [loggingOut, setLoggingOut] = useState(false)
 
   const formRef = useRef<HandoverFormRef>(null)
@@ -135,18 +116,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
   const [pendingDate, setPendingDate] = useState<Date | null>(null)
   const [isDownloadingZip, setIsDownloadingZip] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    // 자정 새로고침 시 URL ?date= 파라미터 기반으로 월 초기화
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const dateParam = params.get('date')
-      if (dateParam) {
-        const parsed = new Date(dateParam + 'T00:00:00')
-        if (!isNaN(parsed.getTime())) return getLocalMidnight(parsed)
-      }
-    }
-    return getLocalMidnight()
-  })
+  const [currentMonth, setCurrentMonth] = useState(() => getLocalMidnight())
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleData | null>(null)
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleData | null>(null)
   const [weeklyTask, setWeeklyTask] = useState<WeeklyTaskData | null>(null)
@@ -173,7 +143,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<{ id: string, isDaily: boolean } | null>(null)
   
   // 새로 추가된 상단 탭 상태
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task' | 'staff'>('schedule')
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task' | 'staff' | 'search'>('schedule')
 
   // ── DB 변경 감지 폴링: 마지막으로 확인한 타임스탬프 ──
   const lastKnownDbTimestamp = useRef<string>('')
@@ -189,11 +159,21 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
     }
   }, [])
 
-  // URL의 date 파라미터를 읽어온 후 주소창에서 제거 (새로고침 시 과거 날짜로 고정되는 현상 방지)
+  // URL의 date 파라미터를 읽어온 후 주소창에서 제거 및 날짜 초기화 (새로고침 시 과거 날짜 고정 방지)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
       if (url.searchParams.has('date')) {
+        const dateParam = url.searchParams.get('date')
+        if (dateParam) {
+          const parsed = new Date(dateParam + 'T00:00:00')
+          if (!isNaN(parsed.getTime())) {
+            const midnight = getLocalMidnight(parsed)
+            setSelectedDate(midnight)
+            setCurrentMonth(midnight)
+            setActiveMonth(dateParam.substring(0, 7))
+          }
+        }
         url.searchParams.delete('date')
         window.history.replaceState({}, '', url.toString())
       }
@@ -1159,6 +1139,12 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 근무자
               </button>
             )}
+            <button 
+              onClick={() => setActiveMenu('search')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'search' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              통합검색
+            </button>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -1416,6 +1402,8 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 )}
               </div>
             </div>
+          ) : activeMenu === 'search' ? (
+            <SearchTab />
           ) : (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col h-full overflow-hidden">
               <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-5 flex items-center justify-between">
@@ -1570,6 +1558,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
         </div>
 
         {/* 우측: 캘린더 + 정보 */}
+        {activeMenu !== 'search' && (
         <div className={`${activeMenu === 'mw' ? 'flex-1' : activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
 
           {/* 캘린더 대체 및 실제 캘린더 */}
@@ -1875,6 +1864,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
             </span>
           </div>
         </div>
+        )}
         </div>
       </main>
 
