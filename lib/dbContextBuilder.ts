@@ -101,7 +101,7 @@ async function buildHandoverContext(from: string, to: string): Promise<string> {
     const checkItems = entry.rStudio?.체크항목
     if (checkItems) {
       for (const [item, vals] of Object.entries(checkItems)) {
-        const v = vals as Record<string, string>
+        const v = vals as unknown as Record<string, string>
         for (const [medium, status] of Object.entries(v)) {
           if (status && status !== '정상' && medium !== '매체') {
             abnormals.push(item + '(' + medium + '): ' + status)
