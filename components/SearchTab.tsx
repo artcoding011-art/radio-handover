@@ -140,6 +140,7 @@ function FileTreeNode({ node, depth = 0 }: { node: FileNode; depth?: number }) {
 export default function SearchTab() {
   const [query, setQuery] = useState('')
   const [folderPath, setFolderPath] = useState('')
+  const [isPickingFolder, setIsPickingFolder] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null)
   const [analyzeError, setAnalyzeError] = useState<string | null>(null)
@@ -211,6 +212,26 @@ export default function SearchTab() {
       setAnalyzing(false)
     }
   }, [folderPath])
+
+  // 네이티브 폴더 선택기 호출
+  const handlePickFolder = useCallback(async () => {
+    setIsPickingFolder(true)
+    try {
+      const res = await fetch('/api/system/pick-folder')
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || '폴더 선택에 실패했습니다.')
+      } else if (data.path) {
+        setFolderPath(data.path)
+        // 폴더를 선택하면 자동으로 분석 실행 (선택사항)
+        // setTimeout(() => handleAnalyze(), 100)
+      }
+    } catch (err: any) {
+      alert('폴더 선택 창을 띄우는 중 오류가 발생했습니다: ' + err.message)
+    } finally {
+      setIsPickingFolder(false)
+    }
+  }, [])
 
   // AI 검색 호출
   const handleSearch = useCallback(async (searchQuery: string = query) => {
@@ -671,12 +692,29 @@ export default function SearchTab() {
             서버(로컬 머신)에서 접근 가능한 폴더 절대 경로를 입력하세요. 하위 폴더까지 자동으로 탐색합니다.
           </p>
           <div className="flex gap-2">
+            <button
+              onClick={handlePickFolder}
+              disabled={isPickingFolder}
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-xl text-gray-700 text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-colors disabled:opacity-50"
+            >
+              {isPickingFolder ? (
+                <svg className="w-4 h-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              )}
+              {isPickingFolder ? '선택 중...' : '폴더 지정하기'}
+            </button>
             <input
               type="text"
               value={folderPath}
               onChange={e => setFolderPath(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAnalyze()}
-              placeholder="예: /Users/admin/Documents/자료"
+              placeholder="직접 입력 시 예: /Users/admin/Documents/자료"
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 outline-none text-sm text-gray-800 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition bg-gray-50 font-mono"
             />
             <button
