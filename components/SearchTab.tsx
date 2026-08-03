@@ -490,22 +490,7 @@ export default function SearchTab() {
           </button>
         </div>
 
-        {/* 빠른 검색 버튼 */}
-        <div className="mt-5 flex flex-wrap gap-3 justify-center text-sm font-semibold">
-          {['오늘 스케줄 알려줘', '최근 인수인계 내역 검색', '근무자 배정 현황'].map(text => (
-            <button
-              key={text}
-              onClick={() => {
-                setQuery(text);
-                handleSearch(text);
-              }}
-              disabled={isSearching}
-              className="px-5 py-2 bg-white hover:bg-gray-50 disabled:opacity-50 rounded-full transition-all border border-gray-200 shadow-sm hover:shadow text-blue-800 hover:text-blue-900"
-            >
-              {text}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {/* 구분선 */}
