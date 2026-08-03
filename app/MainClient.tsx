@@ -1172,8 +1172,14 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
             : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'task' || activeMenu === 'staff') ? 'w-full max-w-[800px] flex-shrink-0' 
             : 'flex-1'} overflow-visible
         `}>
-          {activeMenu === 'mw' ? (
-            <MwWeeklyList 
+          {/* SearchTab은 상태(과거 대화 등) 유지를 위해 항상 렌더링 후 CSS로만 숨김 */}
+          <div className={`h-full w-full ${activeMenu === 'search' ? 'block' : 'hidden'}`}>
+            <SearchTab />
+          </div>
+
+          {activeMenu !== 'search' && (
+            activeMenu === 'mw' ? (
+              <MwWeeklyList 
               selectedDate={mwSelectedDate}
               onDateChange={setMwSelectedDate}
               refreshKey={mwRefreshKey}
@@ -1402,8 +1408,6 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 )}
               </div>
             </div>
-          ) : activeMenu === 'search' ? (
-            <SearchTab />
           ) : (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col h-full overflow-hidden">
               <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-5 flex items-center justify-between">
@@ -1554,7 +1558,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 )}
               </div>
             </div>
-          )}
+          ))}
         </div>
 
         {/* 우측: 캘린더 + 정보 */}

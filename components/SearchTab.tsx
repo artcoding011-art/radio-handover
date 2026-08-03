@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 
 // ───────────── 타입 ─────────────
 interface FileNode {
@@ -20,6 +20,14 @@ interface AnalyzeResult {
   totalSize: number
   tree: FileNode[]
   extensions: Record<string, number>
+}
+
+export interface ChatHistoryItem {
+  id: string;
+  query: string;
+  answer: string;
+  dbSummary: string | null;
+  timestamp: number;
 }
 
 // ───────────── 유틸 ─────────────
@@ -144,6 +152,21 @@ export default function SearchTab() {
   const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash-lite')
   const [useFolderContext, setUseFolderContext] = useState(false)
 
+  // 대화 내역 상태
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('factchat_history')
+      if (saved) {
+        setChatHistory(JSON.parse(saved))
+      }
+    } catch (e) {
+      console.error('Failed to load chat history', e)
+    }
+  }, [])
+
   // DB 컨텍스트 상태
   const [useDbContext, setUseDbContext] = useState(false)
   const [dbOptions, setDbOptions] = useState({
@@ -212,6 +235,20 @@ export default function SearchTab() {
       if (!res.ok) throw new Error(data.error || '검색 실패')
       setSearchResult(data.answer)
       if (data.dbSummary) setDbSummary(data.dbSummary)
+
+      // 성공 시 대화 내역에 저장
+      const newHistoryItem: ChatHistoryItem = {
+        id: Date.now().toString(),
+        query: searchQuery.trim(),
+        answer: data.answer,
+        dbSummary: data.dbSummary || null,
+        timestamp: Date.now(),
+      }
+      setChatHistory(prev => {
+        const next = [newHistoryItem, ...prev].slice(0, 50)
+        localStorage.setItem('factchat_history', JSON.stringify(next))
+        return next
+      })
     } catch (e: any) {
       setSearchError(e.message || '알 수 없는 오류가 발생했습니다.')
     } finally {
@@ -228,6 +265,85 @@ export default function SearchTab() {
 
   return (
     <div className="bg-gradient-to-br from-blue-50/60 to-indigo-50/60 rounded-2xl shadow-md border border-gray-100 flex flex-col h-full overflow-hidden w-full relative">
+
+      {/* ── 우측 상단: 대화 내역 버튼 ── */}
+      <button 
+        onClick={() => setIsHistoryOpen(true)}
+        className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 shadow-sm rounded-lg text-sm font-semibold text-gray-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors z-10"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        대화 내역 보기
+      </button>
+
+      {/* ── 사이드 서랍(Drawer): 대화 내역 ── */}
+      {isHistoryOpen && (
+        <div className="absolute inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setIsHistoryOpen(false)}></div>
+          <div className="relative w-full max-w-sm h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                과거 대화 내역
+              </h3>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    if (confirm('모든 대화 내역을 삭제하시겠습니까?')) {
+                      setChatHistory([])
+                      localStorage.removeItem('factchat_history')
+                    }
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                  title="전체 삭제"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+                <button onClick={() => setIsHistoryOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {chatHistory.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  저장된 대화 내역이 없습니다.
+                </div>
+              ) : (
+                chatHistory.map(item => (
+                  <div 
+                    key={item.id}
+                    onClick={() => {
+                      setQuery(item.query)
+                      setSearchResult(item.answer)
+                      setDbSummary(item.dbSummary)
+                      setIsHistoryOpen(false)
+                    }}
+                    className="p-3 border border-gray-100 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition group"
+                  >
+                    <div className="text-xs text-gray-400 mb-1">
+                      {new Date(item.timestamp).toLocaleString('ko-KR')}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-700 line-clamp-2 mb-1 group-hover:text-indigo-700">
+                      {item.query}
+                    </div>
+                    <div className="text-xs text-gray-500 line-clamp-2">
+                      {item.answer}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 상단: 타이틀 + 검색창 ── */}
       <div className="flex flex-col items-center justify-center pt-14 pb-8 px-8 flex-shrink-0">
