@@ -47,37 +47,23 @@ export async function POST(req: Request) {
       }
     }
 
-    // 폴더 콘텍스트
+    // 폴더 콘텍스트 (data/wiki/md 하드코딩)
     let folderContext = ''
-    if (useFolderContext && folderPath && typeof folderPath === 'string') {
+    if (useFolderContext) {
       try {
-        const resolvedPath = path.resolve(folderPath)
-        if (fsModule.existsSync(resolvedPath) && fsModule.statSync(resolvedPath).isDirectory()) {
-          const walkSync = (dir: string, filelist: string[] = [], depth = 0): string[] => {
-            if (depth > 3) return filelist
-            const files = fsModule.readdirSync(dir)
-            for (const file of files) {
-              if (file.startsWith('.')) continue
-              const filepath = path.join(dir, file)
+        const mdDir = path.join(process.cwd(), 'data', 'wiki', 'md')
+        if (fsModule.existsSync(mdDir) && fsModule.statSync(mdDir).isDirectory()) {
+          const files = fsModule.readdirSync(mdDir)
+          const mdFiles = files.filter(f => f.endsWith('.md'))
+          
+          if (mdFiles.length > 0) {
+            folderContext += '[학습된 위키 문서 목록]\n' + mdFiles.join('\n') + '\n\n'
+            for (const file of mdFiles) {
+              const filepath = path.join(mdDir, file)
               try {
-                if (fsModule.statSync(filepath).isDirectory()) {
-                  filelist = walkSync(filepath, filelist, depth + 1)
-                } else {
-                  filelist.push(filepath)
-                }
+                const text = fsModule.readFileSync(filepath, 'utf-8')
+                folderContext += '\n\n--- 문서: ' + file + ' ---\n' + text.substring(0, 3000)
               } catch (e) {}
-            }
-            return filelist
-          }
-          const allFiles = walkSync(resolvedPath)
-          const fileIndex = allFiles.map((f: string) => f.replace(resolvedPath, '')).join('\n')
-          folderContext += '[폴더 내 전체 파일 목록]\n' + fileIndex + '\n\n'
-          const filesToRead = allFiles.slice(0, 15)
-          for (const fullPath of filesToRead) {
-            const relativePath = fullPath.replace(resolvedPath, '')
-            const text = await parseFileToText(fullPath)
-            if (text && !text.startsWith('[내용을 텍스트로 변환할 수 없는')) {
-              folderContext += '\n\n--- 파일: ' + relativePath + ' ---\n' + text.substring(0, 3000)
             }
           }
         }

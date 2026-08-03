@@ -139,11 +139,7 @@ function FileTreeNode({ node, depth = 0 }: { node: FileNode; depth?: number }) {
 // ───────────── 메인 컴포넌트 ─────────────
 export default function SearchTab() {
   const [query, setQuery] = useState('')
-  const [folderPath, setFolderPath] = useState('')
-  const [isPickingFolder, setIsPickingFolder] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null)
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
 
   // AI 검색 상태
   const [isSearching, setIsSearching] = useState(false)
@@ -191,47 +187,113 @@ export default function SearchTab() {
   const [dbFrom, setDbFrom] = useState(sevenDaysAgo)
   const [dbTo, setDbTo] = useState(today)
 
-  // 폴더 분석 호출
-  const handleAnalyze = useCallback(async () => {
-    if (!folderPath.trim()) return
-    setAnalyzing(true)
-    setAnalyzeError(null)
-    setAnalyzeResult(null)
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    if (isUploading) return
+
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    
+    // Check for directories or zip
+    const hasDirOrZip = droppedFiles.some(f => 
+      !f.type && f.size % 4096 === 0 || f.name.endsWith('.zip')
+    )
+    if (hasDirOrZip) {
+      alert('압축파일 및 폴더는 업로드 할 수 없습니다. 개별파일로 올려주세요.')
+      return
+    }
+
+    setPendingFiles(prev => {
+      const newFiles = [...prev, ...droppedFiles]
+      if (newFiles.length > 5) {
+        alert('최대 5개의 파일까지만 올릴 수 있습니다.')
+        return newFiles.slice(0, 5)
+      }
+      return newFiles
+    })
+  }, [isUploading])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }, [])
+
+  const startLearning = async () => {
+    if (pendingFiles.length === 0) return
+    setIsUploading(true)
+    
     try {
-      const res = await fetch('/api/search/analyze-folder', {
+      // 중복 체크
+      const filenames = pendingFiles.map(f => f.name)
+      const dupRes = await fetch('/api/search/check-duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderPath: folderPath.trim() }),
+        body: JSON.stringify({ filenames })
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '분석 실패')
-      setAnalyzeResult(data.result)
-    } catch (e: any) {
-      setAnalyzeError(e.message || '알 수 없는 오류가 발생했습니다.')
-    } finally {
-      setAnalyzing(false)
-    }
-  }, [folderPath])
+      const dupData = await dupRes.json()
+      const duplicates = dupData.duplicates || []
 
-  // 네이티브 폴더 선택기 호출
-  const handlePickFolder = useCallback(async () => {
-    setIsPickingFolder(true)
-    try {
-      const res = await fetch('/api/system/pick-folder')
-      const data = await res.json()
-      if (!res.ok) {
-        alert(data.error || '폴더 선택에 실패했습니다.')
-      } else if (data.path) {
-        setFolderPath(data.path)
-        // 폴더를 선택하면 자동으로 분석 실행 (선택사항)
-        // setTimeout(() => handleAnalyze(), 100)
+      // 진행할 파일 필터링
+      const filesToProcess: File[] = []
+      for (const file of pendingFiles) {
+        if (duplicates.includes(file.name)) {
+          const confirmOverwrite = window.confirm(`'${file.name}' 은(는) 이전에 학습시킨 이력이 있는 파일입니다. 다시 학습시키겠습니까?`)
+          if (confirmOverwrite) {
+            filesToProcess.push(file)
+          }
+        } else {
+          filesToProcess.push(file)
+        }
       }
-    } catch (err: any) {
-      alert('폴더 선택 창을 띄우는 중 오류가 발생했습니다: ' + err.message)
+
+      if (filesToProcess.length === 0) {
+        setUploadMessage('학습할 파일이 없습니다.')
+        setPendingFiles([])
+        setIsUploading(false)
+        return
+      }
+
+      // 순차적 업로드
+      let successCount = 0
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i]
+        setUploadMessage(`학습 중... (${i + 1}/${filesToProcess.length}) - ${file.name}`)
+        
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const upRes = await fetch('/api/search/upload-and-summarize', {
+          method: 'POST',
+          body: formData
+        })
+        if (upRes.ok) {
+          successCount++
+        }
+      }
+
+      setUploadMessage(`총 ${filesToProcess.length}개 중 ${successCount}개 학습 완료!`)
+      setPendingFiles([])
+      
+      setTimeout(() => {
+        setUploadMessage('')
+      }, 3000)
+
+    } catch (error) {
+      alert('학습 중 오류가 발생했습니다.')
+      setUploadMessage('')
     } finally {
-      setIsPickingFolder(false)
+      setIsUploading(false)
     }
-  }, [])
+  }
 
   // AI 검색 호출
   const handleSearch = useCallback(async (searchQuery: string = query) => {
@@ -248,7 +310,6 @@ export default function SearchTab() {
           query: searchQuery.trim(), 
           model: selectedModel,
           useFolderContext,
-          folderPath: folderPath.trim(),
           useDbContext,
           dbContextOptions: useDbContext ? {
             ...dbOptions,
@@ -280,96 +341,11 @@ export default function SearchTab() {
     } finally {
       setIsSearching(false)
     }
-  }, [query, selectedModel, useFolderContext, folderPath, useDbContext, dbOptions, dbFrom, dbTo])
+  }, [query, selectedModel, useFolderContext, useDbContext, dbOptions, dbFrom, dbTo])
 
-  // 파일 드래그 앤 드롭 핸들러
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(true)
-  }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(true)
-  }, [])
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-  }, [])
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-
-    if (!folderPath.trim()) {
-      alert('먼저 하단의 대상 폴더 경로를 지정해주세요.')
-      return
-    }
-
-    const items = e.dataTransfer.items
-    const files = e.dataTransfer.files
-
-    if (items) {
-      if (items.length !== 1) {
-        alert('하나의 파일만 업로드 해 주세요.')
-        return
-      }
-      const item = items[0]
-      if (item.kind !== 'file') return
-      
-      const entry = item.webkitGetAsEntry?.()
-      if (entry && entry.isDirectory) {
-        alert('하나의 파일만 업로드 해 주세요.')
-        return
-      }
-    }
-
-    if (files && files.length > 0) {
-      const file = files[0]
-      if (file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip')) {
-        alert('하나의 파일만 업로드 해 주세요.')
-        return
-      }
-
-      if (window.confirm('해당 경로에 파일을 저장하고 요약본을 만드시겠습니까?')) {
-        setIsUploading(true)
-        setUploadMessage('파일 파싱 및 AI 요약 중...')
-        try {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('folderPath', folderPath.trim())
-
-          const res = await fetch('/api/search/upload-and-summarize', {
-            method: 'POST',
-            body: formData,
-          })
-          const result = await res.json()
-
-          if (!res.ok) {
-            alert(result.error || '업로드 실패')
-          } else {
-            await handleAnalyze()
-          }
-        } catch (err: any) {
-          alert('서버 오류가 발생했습니다: ' + err.message)
-        } finally {
-          setIsUploading(false)
-        }
-      }
-    }
-  }, [folderPath, handleAnalyze])
-
-  // 상위 확장자 Top 5
-  const topExtensions = analyzeResult
-    ? Object.entries(analyzeResult.extensions)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-    : []
 
   return (
     <div 
@@ -510,11 +486,11 @@ export default function SearchTab() {
                 type="checkbox" 
                 checked={useFolderContext}
                 onChange={e => setUseFolderContext(e.target.checked)}
-                disabled={isSearching || !folderPath.trim()}
+                disabled={isSearching}
                 className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 cursor-pointer"
               />
-              <span className={`text-sm font-semibold transition-colors ${!folderPath.trim() ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600'}`}>
-                📁 하단 폴더 문서 참고하기
+              <span className={`text-sm font-semibold transition-colors text-gray-700 group-hover:text-blue-600`}>
+                학습된 파일(Wiki) 참고하기
               </span>
             </label>
             <select 
@@ -677,160 +653,80 @@ export default function SearchTab() {
           </div>
         )}
 
-        {/* 폴더 경로 설정 카드 (기존 기능 유지) */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        {/* LLM Wiki 파일 학습 (Dropzone) */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 relative overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
               <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </div>
-            <h3 className="font-bold text-gray-800 text-base">분석 대상 폴더 설정</h3>
+            <h3 className="font-bold text-gray-800 text-base">LLM Wiki 문서 학습</h3>
           </div>
-          <p className="text-sm text-gray-400 mb-3">
-            서버(로컬 머신)에서 접근 가능한 폴더 절대 경로를 입력하세요. 하위 폴더까지 자동으로 탐색합니다.
+          <p className="text-sm text-gray-400 mb-4">
+            여기에 올려진 문서들은 자동으로 마크다운(MD)으로 요약되어 앱 내부에 저장되며 팀원들과 공유됩니다.
           </p>
-          <div className="flex gap-2">
-            <button
-              onClick={handlePickFolder}
-              disabled={isPickingFolder}
-              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-xl text-gray-700 text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-colors disabled:opacity-50"
-            >
-              {isPickingFolder ? (
-                <svg className="w-4 h-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-              )}
-              {isPickingFolder ? '선택 중...' : '폴더 지정하기'}
-            </button>
-            <input
-              type="text"
-              value={folderPath}
-              onChange={e => setFolderPath(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAnalyze()}
-              placeholder="직접 입력 시 예: /Users/admin/Documents/자료"
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 outline-none text-sm text-gray-800 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition bg-gray-50 font-mono"
-            />
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzing || !folderPath.trim()}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition shadow-sm hover:shadow-md flex items-center gap-2 shrink-0"
-            >
-              {analyzing ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  분석 중...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  폴더 분석
-                </>
-              )}
-            </button>
-          </div>
-        </div>
 
-        {/* 에러 */}
-        {analyzeError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors ${
+              isDragOver ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-gray-50'
+            }`}
+          >
+            <svg className={`w-10 h-10 mb-3 ${isDragOver ? 'text-indigo-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p className="text-sm text-red-700 font-medium">{analyzeError}</p>
+            <p className="text-sm font-semibold text-gray-700">학습할 파일을 여기에 놓아주세요 (최대 5개)</p>
+            <p className="text-xs text-gray-400 mt-1">지원 형식: PDF, DOCX, XLSX, HWP, TXT 등</p>
           </div>
-        )}
 
-        {/* 분석 결과 */}
-        {analyzeResult ? (
-          <>
-            {/* 요약 통계 카드 */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: '전체 파일', value: `${analyzeResult.totalFiles.toLocaleString()}개`, icon: '📄' },
-                { label: '전체 폴더', value: `${analyzeResult.totalDirs.toLocaleString()}개`, icon: '📁' },
-                { label: '총 용량', value: formatBytes(analyzeResult.totalSize), icon: '💾' },
-              ].map(({ label, value, icon }) => (
-                <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col items-center gap-1">
-                  <span className="text-2xl">{icon}</span>
-                  <p className="text-xl font-extrabold text-indigo-700">{value}</p>
-                  <p className="text-xs text-gray-400 font-medium">{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 확장자 분포 */}
-            {topExtensions.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h4 className="font-bold text-gray-700 text-sm mb-3 flex items-center gap-1.5">
-                  <span>📊</span> 파일 형식 분포 (Top 5)
-                </h4>
-                <div className="space-y-2">
-                  {topExtensions.map(([ext, count]) => {
-                    const pct = Math.round((count / analyzeResult.totalFiles) * 100)
-                    const colorClass = EXT_COLORS[ext] || 'bg-gray-100 text-gray-600'
-                    return (
-                      <div key={ext} className="flex items-center gap-3">
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded w-16 text-center flex-shrink-0 ${colorClass}`}>
-                          {ext === '(없음)' ? '기타' : ext.toUpperCase()}
-                        </span>
-                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-2 bg-indigo-400 rounded-full transition-all duration-700"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500 w-10 text-right">{count}개</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 파일 트리 */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="font-bold text-gray-700 text-sm mb-3 flex items-center gap-1.5">
-                <span>🗂</span> 파일 트리
-                <span className="ml-auto text-xs font-normal text-gray-400 font-mono truncate">{analyzeResult.rootPath}</span>
-              </h4>
-              <div className="max-h-[400px] overflow-y-auto border border-gray-50 rounded-xl p-2 bg-gray-50/50">
-                {analyzeResult.tree.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-6">폴더가 비어 있습니다.</p>
+          {pendingFiles.length > 0 && (
+            <div className="mt-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <h4 className="text-xs font-bold text-gray-500 mb-2">대기 중인 파일 ({pendingFiles.length}/5)</h4>
+              <ul className="space-y-2 mb-4">
+                {pendingFiles.map((f, i) => (
+                  <li key={i} className="text-sm flex items-center justify-between text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-100 shadow-sm">
+                    <span className="truncate">{f.name}</span>
+                    <button 
+                      onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-red-400 hover:text-red-600 p-1"
+                      disabled={isUploading}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={startLearning}
+                disabled={isUploading}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isUploading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    학습 진행 중...
+                  </>
                 ) : (
-                  analyzeResult.tree.map((node, i) => (
-                    <FileTreeNode key={i} node={node} depth={0} />
-                  ))
+                  '학습 시작 (확인)'
                 )}
-              </div>
+              </button>
             </div>
-          </>
-        ) : !analyzeError && (
-          /* 빈 상태 */
-          <div className="bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm p-8 flex flex-col items-center justify-center min-h-[160px] text-center">
-            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          )}
+          
+          {uploadMessage && (
+            <div className={`mt-3 text-sm font-semibold text-center px-4 py-2 rounded-xl ${uploadMessage.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-indigo-50 text-indigo-700'}`}>
+              {uploadMessage}
             </div>
-            <p className="text-sm font-semibold text-gray-400">아직 분석된 자료가 없습니다</p>
-            <p className="text-xs text-gray-300 mt-1">위에서 폴더를 지정하면 파일 목록과 분석 결과가 여기에 표시됩니다</p>
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
 
