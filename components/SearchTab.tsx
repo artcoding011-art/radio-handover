@@ -152,6 +152,11 @@ export default function SearchTab() {
   const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash-lite')
   const [useFolderContext, setUseFolderContext] = useState(false)
 
+  // 파일 업로드 (DnD) 상태
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadMessage, setUploadMessage] = useState('')
+
   // 대화 내역 상태
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
@@ -256,6 +261,88 @@ export default function SearchTab() {
     }
   }, [query, selectedModel, useFolderContext, folderPath, useDbContext, dbOptions, dbFrom, dbTo])
 
+  // 파일 드래그 앤 드롭 핸들러
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+
+    if (!folderPath.trim()) {
+      alert('먼저 하단의 대상 폴더 경로를 지정해주세요.')
+      return
+    }
+
+    const items = e.dataTransfer.items
+    const files = e.dataTransfer.files
+
+    if (items) {
+      if (items.length !== 1) {
+        alert('하나의 파일만 업로드 해 주세요.')
+        return
+      }
+      const item = items[0]
+      if (item.kind !== 'file') return
+      
+      const entry = item.webkitGetAsEntry?.()
+      if (entry && entry.isDirectory) {
+        alert('하나의 파일만 업로드 해 주세요.')
+        return
+      }
+    }
+
+    if (files && files.length > 0) {
+      const file = files[0]
+      if (file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip')) {
+        alert('하나의 파일만 업로드 해 주세요.')
+        return
+      }
+
+      if (window.confirm('해당 경로에 파일을 저장하고 요약본을 만드시겠습니까?')) {
+        setIsUploading(true)
+        setUploadMessage('파일 파싱 및 AI 요약 중...')
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('folderPath', folderPath.trim())
+
+          const res = await fetch('/api/search/upload-and-summarize', {
+            method: 'POST',
+            body: formData,
+          })
+          const result = await res.json()
+
+          if (!res.ok) {
+            alert(result.error || '업로드 실패')
+          } else {
+            await handleAnalyze()
+          }
+        } catch (err: any) {
+          alert('서버 오류가 발생했습니다: ' + err.message)
+        } finally {
+          setIsUploading(false)
+        }
+      }
+    }
+  }, [folderPath, handleAnalyze])
+
   // 상위 확장자 Top 5
   const topExtensions = analyzeResult
     ? Object.entries(analyzeResult.extensions)
@@ -264,7 +351,37 @@ export default function SearchTab() {
     : []
 
   return (
-    <div className="bg-gradient-to-br from-blue-50/60 to-indigo-50/60 rounded-2xl shadow-md border border-gray-100 flex flex-col h-full overflow-hidden w-full relative">
+    <div 
+      className="bg-gradient-to-br from-blue-50/60 to-indigo-50/60 rounded-2xl shadow-md border border-gray-100 flex flex-col h-full overflow-hidden w-full relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+
+      {/* ── Drag Overlay ── */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-blue-500 rounded-2xl pointer-events-none transition-all">
+          <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center">
+            <svg className="w-16 h-16 text-blue-500 mb-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <h3 className="text-xl font-bold text-gray-800">여기에 파일을 놓아주세요</h3>
+            <p className="text-sm text-gray-500 mt-2">단일 파일만 업로드 가능합니다 (PDF, Word, Excel 등)</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Uploading Overlay ── */}
+      {isUploading && (
+        <div className="absolute inset-0 z-50 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl transition-all">
+          <div className="bg-white px-8 py-6 rounded-2xl shadow-xl flex flex-col items-center border border-gray-100">
+            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <h3 className="text-lg font-bold text-gray-800">{uploadMessage}</h3>
+            <p className="text-sm text-gray-500 mt-2">완료될 때까지 창을 닫지 마세요...</p>
+          </div>
+        </div>
+      )}
 
       {/* ── 우측 상단: 대화 내역 버튼 ── */}
       <button 
