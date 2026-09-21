@@ -435,11 +435,29 @@ const HandoverForm = forwardRef<HandoverFormRef, HandoverFormProps>(({ date, onS
         </label>
         <div className="flex items-center gap-1.5 ml-4">
           <span className="text-gray-600 text-[15px] font-medium whitespace-nowrap">확인 :</span>
-          <SignaturePad 
-            value={entry.서명} 
-            onChange={(val) => setEntry(e => ({ ...e, 서명: val }))} 
-            disabled={!isEditing} 
-          />
+          <div className="flex flex-col items-center gap-1">
+            <SignaturePad 
+              value={entry.서명} 
+              onChange={(val) => setEntry(e => ({ ...e, 서명: val }))} 
+              disabled={!isEditing} 
+            />
+            {isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultSign = localStorage.getItem('handover_default_signature');
+                  if (defaultSign) {
+                    setEntry(e => ({ ...e, 서명: defaultSign }));
+                  } else {
+                    alert('저장된 기본 서명이 없습니다.');
+                  }
+                }}
+                className="text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-0.5 rounded border border-gray-300 transition-colors w-full"
+              >
+                기본서명 불러오기
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

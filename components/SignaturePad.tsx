@@ -133,6 +133,15 @@ export default function SignaturePad({ value, onChange, disabled }: SignaturePad
     }
   }
 
+  const handleLoadDefault = () => {
+    const defaultSign = localStorage.getItem('handover_default_signature')
+    if (defaultSign) {
+      setTempSignature(defaultSign)
+    } else {
+      alert('저장된 기본 서명이 없습니다.')
+    }
+  }
+
   return (
     <>
       <div 
@@ -153,6 +162,7 @@ export default function SignaturePad({ value, onChange, disabled }: SignaturePad
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800">디지털 서명</h3>
               <div className="flex items-center gap-4">
+                <button onClick={handleLoadDefault} className="text-sm text-emerald-600 hover:text-emerald-700 font-medium underline">기본 서명 불러오기</button>
                 <button onClick={handleSaveAsDefault} disabled={!tempSignature} className="text-sm text-blue-600 hover:text-blue-700 font-medium underline disabled:text-gray-300 disabled:no-underline">기본 서명으로 저장</button>
                 <button onClick={clear} className="text-sm text-red-500 hover:text-red-600 font-medium underline">지우기</button>
               </div>
