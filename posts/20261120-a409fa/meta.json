@@ -1,15 +1,28 @@
 {
   "id": "20261120-a409fa",
   "no": 1,
-  "title": "라이브경남 담당자 및 출연자 연락처(2026.11.20일자)",
+  "title": "라이브경남 담당자 및 출연자 연락처(2026.11.25일자)",
   "author": "admin",
   "isNotice": false,
   "createdAt": "2026-11-20T07:02:17.668Z",
-  "updatedAt": "2026-11-23T07:04:12.984Z",
-  "attachmentCount": 0,
+  "updatedAt": "2026-11-25T05:19:01.131Z",
+  "attachmentCount": 1,
   "hasImage": false,
   "hasLargeFile": false,
-  "attachmentNames": [],
-  "attachments": [],
+  "attachmentNames": [
+    "라이브경남 담당자 및 출연자 연락처_20261125.hwpx"
+  ],
+  "attachments": [
+    {
+      "id": "1795583902423_279e12",
+      "name": "라이브경남 담당자 및 출연자 연락처_20261125.hwpx",
+      "path": "posts/20261120-a409fa/files/file_1795583902423_279e12.hwpx",
+      "size": 68184,
+      "mimeType": "application/haansofthwpx",
+      "isImage": false,
+      "uploadedAt": "2026-11-25T05:18:24.561Z",
+      "storage": "github"
+    }
+  ],
   "images": []
 }
