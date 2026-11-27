@@ -153,3 +153,177 @@
   color: #ef4444 !important;
 }
 
+/* 자료실 비주얼 작성 에디터 (MarkdownViewer와 동일한 KBS 블루 테마) */
+.archive-visual-editor {
+  outline: none;
+  color: #1f2937;
+  font-size: 15px;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.archive-visual-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  white-space: pre-wrap;
+  pointer-events: none;
+  display: block;
+}
+
+.archive-visual-editor h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #172554;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.45rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.archive-visual-editor h1:first-child,
+.archive-visual-editor h2:first-child,
+.archive-visual-editor h3:first-child {
+  margin-top: 0;
+}
+
+.archive-visual-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.35rem;
+  margin-top: 1.1rem;
+  margin-bottom: 0.65rem;
+}
+
+.archive-visual-editor h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 0.9rem;
+  margin-bottom: 0.45rem;
+}
+
+.archive-visual-editor p,
+.archive-visual-editor div {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.archive-visual-editor ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.6rem 0;
+}
+
+.archive-visual-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.6rem 0;
+}
+
+.archive-visual-editor li {
+  margin: 0.2rem 0;
+}
+
+.archive-visual-editor blockquote {
+  border-left: 4px solid rgba(30, 58, 138, 0.6);
+  background-color: rgba(239, 246, 255, 0.6);
+  padding: 0.6rem 1rem;
+  margin: 0.75rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #374151;
+}
+
+.archive-visual-editor hr {
+  margin: 1.25rem 0;
+  border-color: #e5e7eb;
+}
+
+.archive-visual-editor a {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.archive-visual-editor mark {
+  background-color: #fef08a;
+  color: #111827;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.archive-visual-editor details {
+  margin: 0.75rem 0;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: rgba(249, 250, 251, 0.75);
+  padding: 0.6rem 1rem;
+}
+
+.archive-visual-editor summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #172554;
+}
+
+.archive-visual-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+}
+
+.archive-visual-editor thead {
+  background-color: rgba(239, 246, 255, 0.75);
+  color: #172554;
+}
+
+.archive-visual-editor th,
+.archive-visual-editor td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  min-width: 60px;
+}
+
+.archive-visual-editor th {
+  font-weight: 700;
+}
+
+.archive-visual-editor code {
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.82rem;
+  border: 1px solid #dbeafe;
+}
+
+.archive-visual-editor pre {
+  background-color: #111827;
+  color: #f3f4f6;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+
+.archive-visual-editor pre code {
+  background: transparent;
+  color: inherit;
+  border: none;
+  padding: 0;
+}
+
+.archive-visual-editor img {
+  max-width: 100%;
+  max-height: 520px;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  margin: 0.6rem 0;
+  display: inline-block;
+}
+
+

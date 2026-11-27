@@ -14,6 +14,7 @@ import StaffCalendar from '@/components/StaffCalendar'
 import StaffManager from '@/components/StaffManager'
 import StaffScheduleInput from '@/components/StaffScheduleInput'
 import SearchTab from '@/components/SearchTab'
+import ArchiveTab from '@/components/ArchiveTab'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { generateExcelHtml } from '@/lib/excel'
@@ -143,7 +144,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<{ id: string, isDaily: boolean } | null>(null)
   
   // 새로 추가된 상단 탭 상태
-  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'task' | 'staff' | 'search'>('schedule')
+  const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'archive' | 'task' | 'staff' | 'search'>('schedule')
 
   // ── DB 변경 감지 폴링: 마지막으로 확인한 타임스탬프 ──
   const lastKnownDbTimestamp = useRef<string>('')
@@ -1131,6 +1132,12 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
                 M/W 점검
               </button>
             )}
+            <button 
+              onClick={() => setActiveMenu('archive')}
+              className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'archive' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
+            >
+              자료실
+            </button>
             {!isReadonly && (
               <button 
                 onClick={() => setActiveMenu('staff')}
@@ -1170,14 +1177,19 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
         <div className={`
           ${activeMenu === 'mw' ? 'w-full max-w-[200px] flex-shrink-0' 
             : (activeMenu === 'handover' || activeMenu === 'schedule' || activeMenu === 'task' || activeMenu === 'staff') ? 'w-full max-w-[800px] flex-shrink-0' 
-            : 'flex-1'} overflow-visible
+            : 'flex-1 min-w-0'} ${activeMenu === 'archive' ? 'h-full overflow-y-auto pr-1' : 'overflow-visible'}
         `}>
           {/* SearchTab은 상태(과거 대화 등) 유지를 위해 항상 렌더링 후 CSS로만 숨김 */}
           <div className={`h-full w-full ${activeMenu === 'search' ? 'block' : 'hidden'}`}>
             <SearchTab />
           </div>
 
-          {activeMenu !== 'search' && (
+          {/* ArchiveTab도 목록/글 캐시 및 상태 유지를 위해 항상 마운트 후 CSS로만 숨김 */}
+          <div className={`h-full w-full ${activeMenu === 'archive' ? 'block' : 'hidden'}`}>
+            <ArchiveTab userId={userId} isReadonly={isReadonly} isActive={activeMenu === 'archive'} />
+          </div>
+
+          {activeMenu !== 'search' && activeMenu !== 'archive' && (
             activeMenu === 'mw' ? (
               <MwWeeklyList 
               selectedDate={mwSelectedDate}
@@ -1562,7 +1574,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
         </div>
 
         {/* 우측: 캘린더 + 정보 */}
-        {activeMenu !== 'search' && (
+        {activeMenu !== 'search' && activeMenu !== 'archive' && (
         <div className={`${activeMenu === 'mw' ? 'flex-1' : activeMenu === 'handover' ? 'w-full max-w-[800px]' : 'flex-1'} flex flex-col gap-3 overflow-y-auto min-w-0`}>
 
           {/* 캘린더 대체 및 실제 캘린더 */}
