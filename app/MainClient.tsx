@@ -145,6 +145,7 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
   
   // 새로 추가된 상단 탭 상태
   const [activeMenu, setActiveMenu] = useState<'handover' | 'schedule' | 'mw' | 'archive' | 'task' | 'staff' | 'search'>('schedule')
+  const [archiveResetKey, setArchiveResetKey] = useState(0)
 
   // ── DB 변경 감지 폴링: 마지막으로 확인한 타임스탬프 ──
   const lastKnownDbTimestamp = useRef<string>('')
@@ -1133,7 +1134,10 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
               </button>
             )}
             <button 
-              onClick={() => setActiveMenu('archive')}
+              onClick={() => {
+                setActiveMenu('archive')
+                setArchiveResetKey((prev) => prev + 1)
+              }}
               className={`px-4 py-1.5 rounded-lg text-[15px] font-bold transition-all ${activeMenu === 'archive' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-700/50'}`}
             >
               자료실
@@ -1186,7 +1190,12 @@ export default function MainClient({ userId, isReadonly = false }: MainClientPro
 
           {/* ArchiveTab도 목록/글 캐시 및 상태 유지를 위해 항상 마운트 후 CSS로만 숨김 */}
           <div className={`h-full w-full ${activeMenu === 'archive' ? 'block' : 'hidden'}`}>
-            <ArchiveTab userId={userId} isReadonly={isReadonly} isActive={activeMenu === 'archive'} />
+            <ArchiveTab
+              userId={userId}
+              isReadonly={isReadonly}
+              isActive={activeMenu === 'archive'}
+              resetKey={archiveResetKey}
+            />
           </div>
 
           {activeMenu !== 'search' && activeMenu !== 'archive' && (

@@ -10,6 +10,7 @@ interface ArchiveTabProps {
   userId: string
   isReadonly?: boolean
   isActive?: boolean
+  resetKey?: number
 }
 
 const PAGE_SIZE = 15
@@ -113,6 +114,7 @@ export default function ArchiveTab({
   userId,
   isReadonly = false,
   isActive = true,
+  resetKey = 0,
 }: ArchiveTabProps) {
   const [view, setView] = useState<'list' | 'detail' | 'write' | 'edit'>('list')
   const [posts, setPosts] = useState<ArchivePostSummary[]>([])
@@ -132,6 +134,25 @@ export default function ArchiveTab({
   const postCacheRef = useRef<Map<string, ArchivePost>>(new Map())
   const inflightPromiseRef = useRef<Map<string, Promise<ArchivePost | null>>>(new Map())
   const didInitialFetchRef = useRef(false)
+  const prevIsActiveRef = useRef<boolean>(isActive)
+
+  // 다른 탭에 갔다 오거나 자료실 탭을 다시 누르면 항상 글 목록으로 복귀
+  useEffect(() => {
+    const wasInactive = !prevIsActiveRef.current
+    prevIsActiveRef.current = isActive
+
+    if (isActive && wasInactive) {
+      setView('list')
+      setSelectedPost(null)
+    }
+  }, [isActive])
+
+  useEffect(() => {
+    if (resetKey > 0) {
+      setView('list')
+      setSelectedPost(null)
+    }
+  }, [resetKey])
 
   // 마운트 직후 sessionStorage에서 즉시 복원 (F5 새로고침 시 0초 표시)
   useEffect(() => {
